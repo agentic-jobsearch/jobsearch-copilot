@@ -1,0 +1,19 @@
+# general
+.DS_Store
+.env
+*.log
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.env.*
+
+# node
+node_modules/
+.next/
+dist/
+*.local
+
+# docker
+*.pid

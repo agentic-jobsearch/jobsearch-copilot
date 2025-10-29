@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "JobPosting",
+  "type": "object",
+  "properties": {
+    "source": {"type": "string"},
+    "job_id": {"type": "string"},
+    "title": {"type": "string"},
+    "company": {"type": "string"},
+    "location": {"type": ["string","null"]},
+    "description": {"type": "string"},
+    "url": {"type": ["string","null"]},
+    "score": {"type": ["number","null"]}
+  },
+  "required": ["source","job_id","title","company","description"]
+}
