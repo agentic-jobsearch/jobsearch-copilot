@@ -4,7 +4,7 @@
 Agentic AI that finds jobs, tailors materials, and applies where allowed (hybrid auto-apply).
 
 ## Stack
-- Frontend: Next.js + Tailwind (desktop dashboard)
+- Frontend: ReactJS + Tailwind (desktop dashboard)
 - Backend: FastAPI (Python) + LangGraph (agents)
 - Memory: FAISS (local dev)
 - Packaging: Docker + docker-compose
