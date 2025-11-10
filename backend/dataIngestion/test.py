@@ -1,8 +1,12 @@
 from google.cloud import bigquery
 from google.oauth2 import service_account
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Path to your service account key
-key_path = "/Users/lebak/Documents/mydemo.json"
+key_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 # Create credentials
 credentials = service_account.Credentials.from_service_account_file(key_path)
