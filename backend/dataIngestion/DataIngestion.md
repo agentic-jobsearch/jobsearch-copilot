@@ -25,47 +25,74 @@ Utility module for upserting DataFrames to BigQuery:
 - Handles schema validation
 - Cleans up temporary tables
 
-### `.env`
-Environment configuration file containing:
+### `test.py`
+Test script to verify BigQuery connection
 
+---
 
-# How to Run Data Ingestion on Your Local Machine
+## Setup
 
-## Prerequisites
+For complete installation and setup instructions including BigQuery configuration, please refer to the [main README](../../README.md#installation-and-setup).
 
-### 1. System Requirements
-- Python 3.10 or higher
+**Quick Setup Checklist:**
+- [ ] Python 3.10+ installed
+- [ ] Virtual environment created and activated
+- [ ] Dependencies installed from root `requirements.txt`
+- [ ] BigQuery service account created with required permissions
+- [ ] `.env` file configured in project root
 
-### 2. Google Cloud Setup
-Before running the data ingestion, you need to set up Google Cloud access:
+---
 
-#### Step 1:Create Service Account
-1. Navigate to IAM & Admin > Service Accounts
-2. Click "Create Service Account"
-3. Give it a name (e.g., `jobsearch-data-ingestion`)
-4. Assign roles:
-   - BigQuery Data Editor
-   - BigQuery Job User
-   - BigQuery User
-5. Create and download the JSON key file
-6. Save the key file securely (e.g., `~/Downloads/agentic-jobsearch-service-account.json`)
+## Running Data Ingestion
 
-#### Step 2: Assign Roles
-Assign the following roles to your service account:
-- **BigQuery Data Editor** - To read/write data in BigQuery
-- **BigQuery Job User** - To run BigQuery jobs
-- **BigQuery User** - To access BigQuery resources
+After completing the setup from the main README:
 
-#### Step 3: Create and Download Key
-1. Click on the created service account
-2. Go to the **"Keys"** tab
-3. Click **"Add Key"** > **"Create new key"**
-4. Select **JSON** format
-5. Click **"Create"** - this will download the JSON key file
-6. Save the file securely (e.g., `~/Downloads/agentic-jobsearch-service-account.json`)
-
-#### Step 4: Configure Environment Variables
-1. Create/update the `.env` file in your project root:
+### 1. Test BigQuery Connection
 ```bash
+cd backend/dataIngestion
+python test.py
+```
+
+### 2. Run Data Ingestion
+```bash
+python ApiClient.py
+```
+
+### 3. Verify Data
+Check your BigQuery console to verify data has been loaded into:
+- `job_search.job_details` table
+- `job_search.company` table
+
+---
+
+## Environment Variables Required
+
+Ensure your `.env` file (in project root) contains:
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+GCP_PROJECT_ID=your-project-id
+BQ_DATASET=job_search
+APIFY_API_TOKEN=your-apify-token
+```
+
+---
+
+## Troubleshooting
+
+For common BigQuery connection issues and solutions, see the [Troubleshooting section](../../README.md#troubleshooting) in the main README.
+
+### Data Ingestion Specific Issues
+
+**Issue: "Apify API token not found"**
+- Verify `APIFY_API_TOKEN` is set in your `.env` file
+- Check that you have an active Apify account
+
+**Issue: "Table not found"**
+- The script will create tables automatically on first run
+- Ensure your service account has BigQuery Data Editor permissions
+
+**Issue: "Duplicate key errors"**
+- The upsert mechanism handles duplicates automatically
+- Check the MERGE operation logs for details
 
 

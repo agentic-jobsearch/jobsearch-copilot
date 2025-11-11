@@ -3,34 +3,53 @@
 ## Overview
 The QA Agent is an AI-powered job search assistant that connects to your BigQuery database and uses OpenAI to provide intelligent responses to job-related questions.
 
-## Prerequisites
+## Setup
 
-### 1. Environment Setup
-- Python 3.10 or higher
-- Virtual environment (recommended)
-- BigQuery database with job data
-- OpenAI API key
-- Google Cloud credentials
+For complete installation and setup instructions, please refer to the [main README](../../../README.md#installation-and-setup).
 
-### 2. Required Files
-- `.env` file with API keys
+**Quick Setup Checklist:**
+- [ ] Python 3.10+ installed
+- [ ] Virtual environment created and activated
+- [ ] Dependencies installed from root `requirements.txt`
+- [ ] BigQuery service account created with proper permissions
+- [ ] `.env` file configured with required credentials
+- [ ] OpenAI API key configured
 
+## Testing the Agent
 
-## Installation
+After completing the setup from the main README, test the QA Agent:
 
-### Step 1: Create Virtual Environment
 ```bash
-# Navigate to project directory
-cd /Users/anan/Documents/jobsearch-copilot
+# From the project root
+cd backend/app/agents
 
-# Create virtual environment
-python3 -m venv venv
+# Test connections
+python test_connections.py
+```
 
-# Activate virtual environment
-source venv/bin/activate
+## Usage
 
-# Install required packages
-pip install google-cloud-bigquery python-dotenv openai
+```python
+from qa_agent import QAAgent
 
-# If SSL issues occur, use:
-pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org google-cloud-bigquery python-dotenv openai
+# Initialize the agent
+agent = QAAgent()
+
+# Ask a question
+response = agent.query("Find all software engineering jobs in California")
+print(response)
+```
+
+## Environment Variables Required
+
+Ensure your `.env` file (in project root) contains:
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+GCP_PROJECT_ID=your-project-id
+BQ_DATASET=job_search
+OPENAI_API_KEY=your-openai-api-key
+```
+
+## Troubleshooting
+
+For common issues and solutions, see the [Troubleshooting section](../../../README.md#troubleshooting) in the main README.
