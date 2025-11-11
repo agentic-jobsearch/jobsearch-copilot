@@ -16,202 +16,79 @@ Agentic AI that finds jobs, tailors materials, and applies where allowed (hybrid
 3) Tailored cover letter + résumé
 4) Auto-apply on supported platforms (Indeed/ZipRecruiter); checklist for others
 
----
+# QA Agent - Job Search Assistant
 
-## Installation and Setup
+## Overview
+The QA Agent is an AI-powered job search assistant that connects to your BigQuery database and uses OpenAI to provide intelligent responses to job-related questions.
 
-### Prerequisites
+## Prerequisites
+
+### 1. Environment Setup
 - Python 3.10 or higher
-- Git
-- Google Cloud account (for BigQuery)
-- OpenAI API key (for AI agents)
+- Virtual environment (recommended)
+- BigQuery database with job data
+- OpenAI API key
+- Google Cloud credentials
 
-### Step 1: Clone the Repository
-```bash
-git clone https://github.com/agentic-jobsearch/jobsearch-copilot.git
-cd jobsearch-copilot
-```
+# Create and Active Virtual Environment 
+- python3 -m venv venv
+- source venv/bin/activate   # macOS/Linux
+- venv\Scripts\activate      # Windows
 
-### Step 2: Create Virtual Environment
-```bash
-# Create virtual environment
-python3 -m venv venv
+# Install Requirements
+- pip install -r requirements.txt
 
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
+# Create a .env file in the project root:
+- OPENAI_API_KEY=your_key_here
+- GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service_account.json
+- APIFY_API_TOKEN=your_apify_token
 
-# On Windows:
-# venv\Scripts\activate
-```
+# How to Run Data Ingestion on Your Local Machine & BigQuery Setup (Service Account)
 
-### Step 3: Install Dependencies
-```bash
-# Install all required packages
-pip install -r requirements.txt
 
-# If SSL issues occur (common on some networks), use:
-pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt
-```
+# Data Ingestion Process
+This folder contains the data ingestion pipeline for the job search application. The process extracts job data from Apify API and loads it into Google BigQuery using an upsert mechanism.
 
-### Step 4: Configure Google Cloud BigQuery
+The data ingestion process consists of:
+1. **Data Extraction**: Fetch job data from Apify API
+2. **Data Transformation**: Clean and format data for BigQuery
+3. **Data Loading**: Upsert data into BigQuery tables using MERGE operations
 
-#### 4.1 Create Service Account
-1. Navigate to [Google Cloud Console](https://console.cloud.google.com/)
-2. Go to **IAM & Admin** > **Service Accounts**
-3. Click **"Create Service Account"**
-4. Give it a name (e.g., `jobsearch-data-ingestion`)
-5. Assign the following roles:
-   - **BigQuery Data Editor** - To read/write data in BigQuery
-   - **BigQuery Job User** - To run BigQuery jobs
-   - **BigQuery User** - To access BigQuery resources
+### 2. Google Cloud Setup
+Before running the data ingestion, you need to set up Google Cloud access:
 
-#### 4.2 Create and Download Key
+#### Step 1:Create Service Account
+1. Navigate to IAM & Admin > Service Accounts
+2. Click "Create Service Account"
+3. Give it a name (e.g., `jobsearch-data-ingestion`)
+4. Assign roles:
+   - BigQuery Data Editor
+   - BigQuery Job User
+   - BigQuery User
+5. Create and download the JSON key file
+6. Save the key file securely (e.g., `~/Downloads/agentic-jobsearch-service-account.json`)
+
+#### Step 2: Assign Roles
+Assign the following roles to your service account:
+- **BigQuery Data Editor** - To read/write data in BigQuery
+- **BigQuery Job User** - To run BigQuery jobs
+- **BigQuery User** - To access BigQuery resources
+
+#### Step 3: Create and Download Key
 1. Click on the created service account
 2. Go to the **"Keys"** tab
 3. Click **"Add Key"** > **"Create new key"**
 4. Select **JSON** format
 5. Click **"Create"** - this will download the JSON key file
-6. Save the file securely (e.g., `~/credentials/jobsearch-service-account.json`)
+6. Save the file securely (e.g., `~/Downloads/agentic-jobsearch-service-account.json`)
 
-**Security Note:** Never commit this JSON key file to version control!
-
-### Step 5: Configure Environment Variables
-
-Create a `.env` file in the project root with the following variables:
-
+#### Step 4: Configure Environment Variables
+1. Create/update the `.env` file in your project root:
 ```bash
-# Google Cloud BigQuery
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
-GCP_PROJECT_ID=your-project-id
-BQ_DATASET=job_search
 
-# OpenAI API
-OPENAI_API_KEY=your-openai-api-key
+### I have created the service account for everyone so you can skip this step 1,2,3 from google cloud setup and directly download the json file from teams chat that I have sent to individuals. 
 
-# Optional: Apify API (for job scraping)
-APIFY_API_TOKEN=your-apify-token
-```
 
-**File Permissions (macOS/Linux):**
-```bash
-# Make credentials file readable only by owner
-chmod 600 /path/to/your/service-account-key.json
-
-# Ensure .env is not committed
-echo ".env" >> .gitignore
-```
-
-### Step 6: Verify Installation
-
-Test your BigQuery connection:
-```bash
-cd backend/dataIngestion
-python test.py
-```
-
-Expected output:
-```
-Successfully connected to BigQuery project: your-project-id
-Query results:
-...
-```
-
-Test the QA Agent connection:
-```bash
-cd backend/app/agents
-python test_connections.py
-```
-
----
-
-## Project Structure
-
-```
-jobsearch-copilot/
-├── backend/
-│   ├── app/               # FastAPI application
-│   │   └── agents/        # AI agents (QA, job matching, etc.)
-│   ├── dataIngestion/     # BigQuery data ingestion scripts
-│   └── requirements.txt   # Backend-specific dependencies (deprecated - use root)
-├── frontend/              # React dashboard
-├── data/                  # Local data files
-├── docs/                  # Documentation
-├── infra/                 # Infrastructure and deployment configs
-├── requirements.txt       # All Python dependencies
-└── README.md             # This file
-```
-
----
-
-## Troubleshooting
-
-### SSL Certificate Issues
-If you encounter SSL certificate errors during package installation:
-```bash
-pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt
-```
-
-### BigQuery Connection Issues
-1. **"404 Not found: Dataset"**
-   - Verify the dataset exists in your BigQuery project
-   - Check that your service account has the correct permissions
-   - Ensure the dataset name in `.env` matches your BigQuery dataset
-
-2. **"Permission denied"**
-   - Verify your service account has the required roles (BigQuery Data Editor, Job User, User)
-   - Check that the `GOOGLE_APPLICATION_CREDENTIALS` path is correct
-   - Ensure the JSON key file has proper read permissions
-
-3. **"DefaultCredentialsError"**
-   - Verify the service account JSON key file is valid
-   - Check that the file path in `.env` is absolute, not relative
-   - Ensure the file has not been corrupted
-
-### OpenAI API Issues
-- Verify your API key is correct and active
-- Check that you have sufficient credits in your OpenAI account
-- Ensure the `OPENAI_API_KEY` is properly set in your `.env` file
-
----
-
-## Additional Resources
-
-- [Backend Agent Documentation](backend/app/agents/Agent.md)
-- [Data Ingestion Guide](backend/dataIngestion/DataIngestion.md)
-- [BigQuery Quick Start](backend/dataIngestion/QUICK_START.md)
-- [Agent Design Documentation](docs/agent-design.md)
-- [Project Roadmap](docs/roadmap.md)
-
----
-
-## Contributing
-
-We welcome contributions! Please ensure you:
-1. Follow the installation steps above to set up your environment
-2. Install all dependencies from `requirements.txt`
-3. Test your changes before submitting a PR
-4. Follow the existing code style and conventions
-
----
-
-## Security Best Practices
-
-1. **Never commit secrets to version control**
-   - Service account keys
-   - API keys
-   - Passwords or tokens
-
-2. **Use environment variables for sensitive data**
-   - Store credentials in `.env` file
-   - Add `.env` to `.gitignore`
-
-3. **Rotate credentials periodically**
-   - Create new service account keys regularly
-   - Delete old keys from Google Cloud Console
-
-4. **Set appropriate file permissions**
-   ```bash
-   chmod 600 /path/to/credentials.json
-   chmod 600 .env
-   ```
+## QA Agent (BigQuery Question Answering)
+cd backend
+python app/agents/QAAgent.py
