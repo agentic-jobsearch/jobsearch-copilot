@@ -8,6 +8,7 @@ from openai import OpenAI
 
 load_dotenv()
 
+# QA Agent for Job Search
 class QAAgent:
     def __init__(self):
         # Initialize OpenAI client
@@ -32,6 +33,7 @@ class QAAgent:
         
         print("QA Agent initialized successfully!")
     
+    # Initialize BigQuery client
     def _init_bigquery_client(self) -> bigquery.Client:
         """Initialize BigQuery client using service account credentials"""
         credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
@@ -41,6 +43,7 @@ class QAAgent:
         else:
             return bigquery.Client(project='agentic-jobsearch')
     
+    # Analyze user query to extract search parameters
     def analyze_user_query(self, user_question: str) -> Dict[str, Any]:
         """Use OpenAI to analyze user question and extract search parameters"""
         analysis_prompt = f"""
@@ -87,6 +90,7 @@ class QAAgent:
                 "search_intent": "Find relevant jobs"
             }
     
+    # Query BigQuery database for jobs
     def query_database(self, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Query BigQuery database based on search parameters"""
         base_query = """
@@ -125,22 +129,22 @@ class QAAgent:
                     f"LOWER(jd.description) LIKE LOWER('%{safe_keyword}%') OR "
                     f"LOWER(jd.skills) LIKE LOWER('%{safe_keyword}%'))"
                 )
-        # If you want to be more specific, you can use AND between keywords instead of OR
+       ### If you want to be more specific, you can use AND between keywords instead of OR
 
             if keyword_conditions:
                 conditions.append(f"({' OR '.join(keyword_conditions)})")
         
-        # Add location filter - FIXED: Use LIKE instead of CONTAINS
+        # Add location filter
         if search_params.get('location'):
             safe_location = search_params['location'].replace("'", "\\'")
             conditions.append(f"LOWER(jd.location) LIKE LOWER('%{safe_location}%')")
         
-        # Add company filter - FIXED: Use LIKE instead of CONTAINS
+        # Add company filter 
         if search_params.get('company'):
             safe_company = search_params['company'].replace("'", "\\'")
             conditions.append(f"LOWER(c.company) LIKE LOWER('%{safe_company}%')")
         
-        # Add work type filter - FIXED: Use LIKE instead of CONTAINS
+        # Add work type filter
         if search_params.get('work_type'):
             safe_work_type = search_params['work_type'].replace("'", "\\'")
             conditions.append(f"LOWER(jd.work_type) LIKE LOWER('%{safe_work_type}%')")
@@ -152,7 +156,7 @@ class QAAgent:
         # Order by posted date and limit results
         base_query += " ORDER BY jd.posted_at DESC LIMIT 10"
         
-        print(f"🔍 Executing SQL: {base_query}")
+       # print(f"Executing SQL: {base_query}")
         
         try:
             results = self.bigquery_client.query(base_query)
@@ -182,9 +186,8 @@ class QAAgent:
         except Exception as e:
             print(f"Error querying database: {e}")
             return []
-    
+    # Generate AI response based on job data
     def generate_response(self, user_question: str, search_params: Dict, jobs_data: List[Dict]) -> str:
-        """Use OpenAI to generate a conversational response based on job data"""
         
         context = f"""
         User Question: "{user_question}"
@@ -211,6 +214,7 @@ class QAAgent:
             - Benefits: {job['benefits'] or 'Not specified'}
             """
         
+        # Create response prompt
         response_prompt = f"""
         Based on the job search results, provide a helpful and conversational response to the user's question.
         
@@ -246,6 +250,7 @@ class QAAgent:
             print(f"Error generating response: {e}")
             return self._fallback_response(jobs_data)
     
+    #  Fallback response method
     def _fallback_response(self, jobs_data: List[Dict]) -> str:
         """Fallback response if OpenAI fails"""
         if not jobs_data:
@@ -266,6 +271,7 @@ class QAAgent:
         
         return response
     
+    # Main method to handle user questions
     def ask_about_jobs(self, user_question: str) -> str:
         """Main method to handle job-related questions"""
         print(f"Processing question: {user_question}")
@@ -273,7 +279,7 @@ class QAAgent:
         try:
             # 1. Analyze the user's question
             search_params = self.analyze_user_query(user_question)
-            print(f"🔍 Search parameters: {search_params}")
+            print(f"Search parameters: {search_params}")
             
             # 2. Query the database
             jobs_data = self.query_database(search_params)
@@ -288,26 +294,38 @@ class QAAgent:
             print(f"Error in ask_about_jobs: {e}")
             return "I'm sorry, I encountered an error while searching for jobs. Please try again with a different question."
 
-# Test the QA Agent
+# Test the QA Agent with Interactive Input
 if __name__ == "__main__":
-    print("Job Search QA Agent Ready!\n")
+    print("Job Search QA Agent Ready!")
+    print("=" * 60)
+    print("Ask me anything about jobs!")
+    print("Type 'quit', 'exit', or 'q' to stop.")
+    print("=" * 60)
     
     agent = QAAgent()
     
-    # Test different types of questions tailored for software engineer jobs
-    test_questions = [
-        "Show me all software engineer jobs",
-        "Find me Python software engineer positions", 
-        "What software engineer jobs are in San Francisco?",
-        "Show me remote software engineer roles",
-        "What companies are hiring software engineers?",
-        "Find senior software engineer positions"
-    ]
-    
-    for question in test_questions:
-        print("=" * 80)
-        print(f"Question: {question}")
-        print("-" * 40)
-        
-        answer = agent.ask_about_jobs(question)
-        print(f"Answer:\n{answer}\n")
+    while True:
+        try:
+            # Get user input
+            user_question = input("\n Your question: ").strip()
+            
+            # Check for exit commands
+            if user_question.lower() in ['quit', 'exit', 'q', '']:
+                print("\n Thank you for using the Job Search QA Agent!")
+                print("Happy job hunting! Goodbye!")
+                break
+            
+            # Process the question
+            print("\n Thinking...")
+            print("-" * 40)
+            
+            answer = agent.ask_about_jobs(user_question)
+            print(f"Answer:\n{answer}")
+            print("\n" + "=" * 60)
+            
+        except KeyboardInterrupt:
+            print("\n\n Goodbye! Thanks for using the Job Search QA Agent!")
+            break
+        except Exception as e:
+            print(f"\n An error occurred: {e}")
+            print("Please try asking your question again.")
