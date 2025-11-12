@@ -3,6 +3,9 @@
 .env
 *.log
 
+# user data
+backend/data/user-profiles/
+
 # python
 __pycache__/
 *.pyc
@@ -16,9 +19,9 @@ dist/
 *.local
 
 # database
-backend/data/*.db
-backend/data/*.db-shm
-backend/data/*.db-wal
+*.db
+*.db-shm
+*.db-wal
 
 # docker
 *.pid

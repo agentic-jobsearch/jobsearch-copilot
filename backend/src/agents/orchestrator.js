@@ -18,7 +18,7 @@ export async function runJobChatFlow({ userMessage, language, profile }) {
   let generatedDocs = null;
 
   if (mode === "job_search") {
-    jobs = await findMatchingJobs(structuredProfile, userMessage);
+    jobs = await findMatchingJobs(structuredProfile);
     reply =
       jobs.length > 0
         ? `I found ${jobs.length} jobs that match your profile. You can review them below and click "Apply" after giving consent.`
