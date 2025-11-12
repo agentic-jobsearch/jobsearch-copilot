@@ -100,7 +100,16 @@ Installation Dependencies
 Backend- 
 
 cd backend
+npm install
 node server.js
+
+**Optional Redis Setup (for persistent user profiles):**
+The backend uses Redis for persistent storage of user profiles. If Redis is unavailable, it will automatically fall back to in-memory storage (data will be lost on server restart).
+
+To enable Redis:
+1. Install Redis locally or use a Redis service
+2. Set `REDIS_URL` in your `.env` file (default: redis://localhost:6379)
+3. Start Redis before running the backend server
 
 Frontend- 
 
