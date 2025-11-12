@@ -4,6 +4,7 @@ import multer from "multer";
 import pdfParse from "pdf-parse";
 import dotenv from "dotenv";
 import { runJobChatFlow } from "./src/agents/orchestrator.js";
+import userProfileStorage from "./src/storage/userProfileStorage.js";
 
 dotenv.config();
 
@@ -14,8 +15,6 @@ app.use(cors());
 app.use(express.json());
 
 const upload = multer({ storage: multer.memoryStorage() });
-
-const userProfiles = new Map();
 
 app.post(
   "/api/upload-docs",
@@ -39,7 +38,7 @@ app.post(
       const cvText = await parseFile(cvFile);
       const transcriptText = await parseFile(transcriptFile);
 
-      userProfiles.set(userId, {
+      await userProfileStorage.set(userId, {
         cvText,
         transcriptText,
         structuredProfile: null
@@ -57,7 +56,7 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { message, language = "en", userId = "demo-user" } = req.body;
 
-    const profile = userProfiles.get(userId) || {
+    const profile = (await userProfileStorage.get(userId)) || {
       cvText: "",
       transcriptText: "",
       structuredProfile: null
@@ -71,7 +70,7 @@ app.post("/api/chat", async (req, res) => {
     });
 
     if (result.updatedProfile) {
-      userProfiles.set(userId, {
+      await userProfileStorage.set(userId, {
         ...profile,
         structuredProfile: result.updatedProfile
       });
