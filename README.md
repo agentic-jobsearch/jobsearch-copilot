@@ -92,3 +92,17 @@ Assign the following roles to your service account:
 ## QA Agent (BigQuery Question Answering)
 cd backend
 python app/agents/QAAgent.py
+
+
+#### To Run frontend and backend
+Installation Dependencies 
+
+Backend- 
+
+cd backend
+node server.js
+
+Frontend- 
+
+cd frontend
+npm run dev
