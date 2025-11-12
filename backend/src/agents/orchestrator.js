@@ -5,7 +5,7 @@ import { generateApplicationDocs } from "./applicationAgent.js";
 export async function runJobChatFlow({ userMessage, language, profile }) {
   const structuredProfile =
     profile.structuredProfile ||
-    (await buildStructuredProfile(profile.cvText, profile.transcriptText, language));
+    (await buildStructuredProfile(profile.cvText, profile.transcriptText));
 
   const lower = userMessage.toLowerCase();
   let mode = "general";
