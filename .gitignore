@@ -18,5 +18,10 @@ node_modules/
 dist/
 *.local
 
+# database
+*.db
+*.db-shm
+*.db-wal
+
 # docker
 *.pid
