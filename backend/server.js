@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import multer from "multer";
-import pdfParse from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 import dotenv from "dotenv";
 import { runJobChatFlow } from "./src/agents/orchestrator.js";
 import userProfileStorage from "./src/storage/userProfileStorage.js";
@@ -29,7 +29,7 @@ app.post(
       const parseFile = async (file) => {
         if (!file) return "";
         if (file.mimetype === "application/pdf") {
-          const data = await pdfParse(file.buffer);
+          const data = await PDFParse(file.buffer);
           return data.text;
         }
         return file.buffer.toString("utf8");
