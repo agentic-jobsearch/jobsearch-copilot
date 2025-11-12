@@ -29,11 +29,17 @@ class UserProfileStorage {
   }
 
   /**
+   * Sanitize user ID to prevent directory traversal and injection attacks
+   */
+  sanitizeUserId(userId) {
+    return userId.replace(/[^a-zA-Z0-9-_]/g, "_");
+  }
+
+  /**
    * Get the file path for a user's profile
    */
   getUserFilePath(userId) {
-    // Sanitize userId to prevent directory traversal
-    const sanitized = userId.replace(/[^a-zA-Z0-9-_]/g, "_");
+    const sanitized = this.sanitizeUserId(userId);
     return path.join(STORAGE_DIR, `${sanitized}.json`);
   }
 
@@ -43,6 +49,7 @@ class UserProfileStorage {
    * @returns {Promise<Object|null>} The user profile or null if not found
    */
   async get(userId) {
+    const sanitizedUserId = this.sanitizeUserId(userId);
     try {
       const filePath = this.getUserFilePath(userId);
       const data = await fs.readFile(filePath, "utf8");
@@ -51,7 +58,7 @@ class UserProfileStorage {
       if (error.code === "ENOENT") {
         return null; // File doesn't exist
       }
-      console.error(`Error reading profile for user ${userId}:`, error);
+      console.error(`Error reading profile for user ${sanitizedUserId}:`, error);
       return null;
     }
   }
@@ -62,12 +69,13 @@ class UserProfileStorage {
    * @param {Object} profile - The user profile data
    */
   async set(userId, profile) {
+    const sanitizedUserId = this.sanitizeUserId(userId);
     try {
       await this.ensureStorageDir();
       const filePath = this.getUserFilePath(userId);
       await fs.writeFile(filePath, JSON.stringify(profile, null, 2), "utf8");
     } catch (error) {
-      console.error(`Error writing profile for user ${userId}:`, error);
+      console.error(`Error writing profile for user ${sanitizedUserId}:`, error);
       throw error;
     }
   }
@@ -77,12 +85,13 @@ class UserProfileStorage {
    * @param {string} userId - The user ID
    */
   async delete(userId) {
+    const sanitizedUserId = this.sanitizeUserId(userId);
     try {
       const filePath = this.getUserFilePath(userId);
       await fs.unlink(filePath);
     } catch (error) {
       if (error.code !== "ENOENT") {
-        console.error(`Error deleting profile for user ${userId}:`, error);
+        console.error(`Error deleting profile for user ${sanitizedUserId}:`, error);
       }
     }
   }
