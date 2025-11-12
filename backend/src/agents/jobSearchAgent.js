@@ -1,4 +1,4 @@
-export async function findMatchingJobs(structuredProfile) {
+export async function findMatchingJobs(structuredProfile, userMessage = "") {
   const baseJobs = [
     {
       id: "job-1",
@@ -30,11 +30,23 @@ export async function findMatchingJobs(structuredProfile) {
   ];
 
   const skills = structuredProfile.skills || [];
+  const messageLower = userMessage.toLowerCase();
 
   return baseJobs
     .map((job) => {
       const overlap = job.requiredSkills.filter((s) => skills.includes(s)).length;
-      return { ...job, matchScore: overlap };
+      let matchScore = overlap;
+      
+      // Boost score if job title or company matches keywords in user message
+      if (messageLower && (
+        messageLower.includes(job.title.toLowerCase()) ||
+        messageLower.includes(job.company.toLowerCase()) ||
+        job.requiredSkills.some(skill => messageLower.includes(skill.toLowerCase()))
+      )) {
+        matchScore += 0.5;
+      }
+      
+      return { ...job, matchScore };
     })
     .filter((job) => job.matchScore > 0)
     .sort((a, b) => b.matchScore - a.matchScore);
