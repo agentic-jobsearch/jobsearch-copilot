@@ -35,7 +35,7 @@ export default function JobList({ jobs, generatedDocs, onApplyClick }) {
               <a
                 href={job.url}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="job-link"
               >
                 View posting
