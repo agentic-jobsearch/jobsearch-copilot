@@ -1,9 +1,10 @@
 import express from "express";
 import cors from "cors";
 import multer from "multer";
-import pdfParse from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 import dotenv from "dotenv";
 import { runJobChatFlow } from "./src/agents/orchestrator.js";
+import { getUserProfile, saveUserProfile, closeDatabase } from "./src/db.js";
 
 dotenv.config();
 
@@ -14,8 +15,6 @@ app.use(cors());
 app.use(express.json());
 
 const upload = multer({ storage: multer.memoryStorage() });
-
-const userProfiles = new Map();
 
 app.post(
   "/api/upload-docs",
@@ -30,7 +29,7 @@ app.post(
       const parseFile = async (file) => {
         if (!file) return "";
         if (file.mimetype === "application/pdf") {
-          const data = await pdfParse(file.buffer);
+          const data = await PDFParse(file.buffer);
           return data.text;
         }
         return file.buffer.toString("utf8");
@@ -39,7 +38,7 @@ app.post(
       const cvText = await parseFile(cvFile);
       const transcriptText = await parseFile(transcriptFile);
 
-      userProfiles.set(userId, {
+      saveUserProfile(userId, {
         cvText,
         transcriptText,
         structuredProfile: null
@@ -57,7 +56,7 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { message, language = "en", userId = "demo-user" } = req.body;
 
-    const profile = userProfiles.get(userId) || {
+    const profile = getUserProfile(userId) || {
       cvText: "",
       transcriptText: "",
       structuredProfile: null
@@ -71,7 +70,7 @@ app.post("/api/chat", async (req, res) => {
     });
 
     if (result.updatedProfile) {
-      userProfiles.set(userId, {
+      saveUserProfile(userId, {
         ...profile,
         structuredProfile: result.updatedProfile
       });
@@ -112,4 +111,17 @@ app.post("/api/apply", async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Job Agent backend listening on http://localhost:${port}`);
+});
+
+// Gracefully close database on shutdown
+process.on("SIGINT", () => {
+  console.log("\nShutting down gracefully...");
+  closeDatabase();
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  console.log("\nShutting down gracefully...");
+  closeDatabase();
+  process.exit(0);
 });
