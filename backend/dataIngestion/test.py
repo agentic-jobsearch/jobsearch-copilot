@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Path to your service account key
+# Path to your service account key 
+# python backend\dataIngestion\test.py
 key_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 # Create credentials
