@@ -3,6 +3,9 @@
 .env
 *.log
 
+# user data
+backend/data/user-profiles/
+
 # python
 __pycache__/
 *.pyc
