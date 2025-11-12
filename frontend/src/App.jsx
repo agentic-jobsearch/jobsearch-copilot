@@ -39,19 +39,29 @@ function App() {
     if (transcriptFile) formData.append("transcript", transcriptFile);
     formData.append("userId", "demo-user");
 
-    await fetch(`${API_BASE}/api/upload-docs`, {
-      method: "POST",
-      body: formData
-    });
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content:
-          "Thanks! Now type or say what kind of roles you are targeting (e.g., “junior data scientist in Florida”)."
+    try {
+      const res = await fetch(`${API_BASE}/api/upload-docs`, {
+        method: "POST",
+        body: formData
+      });
+      if (!res.ok) {
+        throw new Error("Upload failed");
       }
-    ]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "Thanks! Now type or say what kind of roles you are targeting (e.g., “junior data scientist in Florida”)."
+        }
+      ]);
+    } catch (err) {
+      console.error(err);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Something went wrong uploading your documents." }
+      ]);
+    }
   };
 
   const sendMessage = async (text) => {
