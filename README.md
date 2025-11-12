@@ -100,7 +100,7 @@ Installation Dependencies
 Backend- 
 
 cd backend
-npm run start
+node server.js
 
 Frontend- 
 
