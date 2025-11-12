@@ -4,7 +4,7 @@ import multer from "multer";
 import { PDFParse } from "pdf-parse";
 import dotenv from "dotenv";
 import { runJobChatFlow } from "./src/agents/orchestrator.js";
-import { getUserProfile, saveUserProfile, closeDatabase } from "./src/db.js";
+import storageService from "./src/services/storageService.js";
 
 dotenv.config();
 
@@ -38,7 +38,7 @@ app.post(
       const cvText = await parseFile(cvFile);
       const transcriptText = await parseFile(transcriptFile);
 
-      saveUserProfile(userId, {
+      await storageService.setProfile(userId, {
         cvText,
         transcriptText,
         structuredProfile: null
@@ -56,7 +56,7 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { message, language = "en", userId = "demo-user" } = req.body;
 
-    const profile = getUserProfile(userId) || {
+    const profile = await storageService.getProfile(userId) || {
       cvText: "",
       transcriptText: "",
       structuredProfile: null
@@ -70,7 +70,7 @@ app.post("/api/chat", async (req, res) => {
     });
 
     if (result.updatedProfile) {
-      saveUserProfile(userId, {
+      await storageService.setProfile(userId, {
         ...profile,
         structuredProfile: result.updatedProfile
       });
@@ -109,19 +109,26 @@ app.post("/api/apply", async (req, res) => {
   }
 });
 
-app.listen(port, () => {
+// Initialize storage service before starting server
+await storageService.initialize();
+
+const server = app.listen(port, () => {
   console.log(`Job Agent backend listening on http://localhost:${port}`);
 });
 
-// Gracefully close database on shutdown
-process.on("SIGINT", () => {
-  console.log("\nShutting down gracefully...");
-  closeDatabase();
-  process.exit(0);
+// Graceful shutdown
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM received, closing server gracefully...");
+  server.close(async () => {
+    await storageService.close();
+    process.exit(0);
+  });
 });
 
-process.on("SIGTERM", () => {
-  console.log("\nShutting down gracefully...");
-  closeDatabase();
-  process.exit(0);
+process.on("SIGINT", async () => {
+  console.log("SIGINT received, closing server gracefully...");
+  server.close(async () => {
+    await storageService.close();
+    process.exit(0);
+  });
 });
