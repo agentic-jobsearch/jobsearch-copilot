@@ -1,4 +1,4 @@
-export async function buildStructuredProfile(cvText, transcriptText, language = "en") {
+export async function buildStructuredProfile(cvText, transcriptText) {
   const text = `${cvText}\n${transcriptText}`.toLowerCase();
 
   const skills = [];
@@ -28,7 +28,6 @@ export async function buildStructuredProfile(cvText, transcriptText, language = 
     name: "Unknown",
     degree,
     skills: [...new Set(skills)],
-    rawText: text,
-    language
+    rawText: text
   };
 }
