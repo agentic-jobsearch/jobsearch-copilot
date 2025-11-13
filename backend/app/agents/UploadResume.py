@@ -30,21 +30,24 @@ class ResumeParser:
             with open(path, "rb") as f:
                 reader = PyPDF2.PdfReader(f)
                 return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
-        except:
+        except (FileNotFoundError, PermissionError, PyPDF2.errors.PdfReadError, Exception) as e:
+            print(f"Error extracting PDF: {e}")
             return ""
 
     def _extract_docx(self, path: str) -> str:
         try:
             doc = Document(path)
             return "\n".join(p.text for p in doc.paragraphs).strip()
-        except:
+        except (FileNotFoundError, PermissionError, Exception) as e:
+            print(f"Error extracting DOCX: {e}")
             return ""
 
     def _extract_txt(self, path: str) -> str:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return f.read().strip()
-        except:
+        except (FileNotFoundError, PermissionError, UnicodeDecodeError, Exception) as e:
+            print(f"Error extracting TXT: {e}")
             return ""
 
     def extract_text(self, path: str) -> str:
@@ -114,7 +117,8 @@ class ResumeParser:
 
             try:
                 return json.loads(raw)
-            except:
+            except json.JSONDecodeError as e:
+                print(f"JSON decode error: {e}")
                 return {"raw": raw, "error": "Invalid JSON from model"}
 
         except Exception as e:
