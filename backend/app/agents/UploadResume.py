@@ -117,8 +117,7 @@ class ResumeParser:
 
             try:
                 return json.loads(raw)
-            except json.JSONDecodeError as e:
-                print(f"JSON decode error: {e}")
+            except json.JSONDecodeError:
                 return {"raw": raw, "error": "Invalid JSON from model"}
 
         except Exception as e:

@@ -169,7 +169,7 @@ const confirmApply = async () => {
       ...prev,
       {
         role: "assistant",
-        content: `Your application for "${selectedJob.title}" at ${selectedJob.company}" is ready with tailored documents!`
+        content: `Your application for "${selectedJob.title}" at ${selectedJob.company} is ready with tailored documents!`
       }
     ]);
 
