@@ -13,36 +13,41 @@ export default function JobList({ jobs, generatedDocs, onApplyClick }) {
           </p>
         )}
 
-        {jobs.map((job) => (
-          <div key={job.id} className="job-item">
-            <div className="job-main">
-              <div>
-                <div className="job-title">{job.title}</div>
-                <div className="job-company">{job.company}</div>
-                <div className="job-meta">
-                  {job.location} • Match score: {job.matchScore ?? 0}
+        {jobs.map((job) => {
+          const matchScore = job.matchScore ?? job.match_score ?? 0;
+          const jobId = job.id || job.job_id;
+
+          return (
+            <div key={jobId} className="job-item">
+              <div className="job-main">
+                <div>
+                  <div className="job-title">{job.title}</div>
+                  <div className="job-company">{job.company}</div>
+                  <div className="job-meta">
+                    {job.location} • Match score: {matchScore}
+                  </div>
                 </div>
+                <button
+                  className="job-apply-btn"
+                  onClick={() => onApplyClick(job)}
+                  aria-label={`Apply to ${job.title} at ${job.company}`}
+                >
+                  Apply
+                </button>
               </div>
-              <button
-                className="job-apply-btn"
-                onClick={() => onApplyClick(job)}
-                aria-label={`Apply to ${job.title} at ${job.company}`}
-              >
-                Apply
-              </button>
+              {job.url && (
+                <a
+                  href={job.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="job-link"
+                >
+                  View posting
+                </a>
+              )}
             </div>
-            {job.url && (
-              <a
-                href={job.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="job-link"
-              >
-                View posting
-              </a>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {generatedDocs && (

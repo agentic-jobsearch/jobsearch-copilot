@@ -4,7 +4,8 @@ import JobList from "./components/JobList.jsx";
 import ConsentModal from "./components/ConsentModal.jsx";
 import "./App.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+import { uploadDocs, startWorkflow, getWorkflowStatus } from "./api/jobcopilot.js";
+
 
 function App() {
   const [messages, setMessages] = useState([
@@ -34,111 +35,154 @@ function App() {
       return;
     }
 
-    const formData = new FormData();
-    if (cvFile) formData.append("cv", cvFile);
-    if (transcriptFile) formData.append("transcript", transcriptFile);
-    formData.append("userId", "demo-user");
-
     try {
-      const res = await fetch(`${API_BASE}/api/upload-docs`, {
-        method: "POST",
-        body: formData
-      });
-      if (!res.ok) {
-        throw new Error("Upload failed");
-      }
+      await uploadDocs(cvFile, transcriptFile);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           content:
-            "Thanks! Now type or say what kind of roles you are targeting (e.g., “junior data scientist in Florida”)."
+            "Documents uploaded! Now tell me your goal (e.g., 'Find data science jobs in Florida')."
         }
       ]);
     } catch (err) {
       console.error(err);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Something went wrong uploading your documents." }
+        { role: "assistant", content: "Document upload failed." }
       ]);
     }
   };
+
 
   const sendMessage = async (text) => {
-    if (!text.trim()) return;
-    const userMsg = { role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
-    setIsSending(true);
+  if (!text.trim()) return;
+  const userMsg = { role: "user", content: text };
+  setMessages((prev) => [...prev, userMsg]);
+  setIsSending(true);
 
-    try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          language,
-          userId: "demo-user"
-        })
-      });
+  try {
+    // 1. Start workflow
+    const start = await startWorkflow(text, language);
+    if (!start.workflow_id) throw new Error("No workflow_id received");
 
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
+    // 2. Poll status until finished
+    let done = false;
+    let pollInterval = 1200;
+    let result = null;
 
-      const assistantMsg = { role: "assistant", content: data.reply };
-      setMessages((prev) => [...prev, assistantMsg]);
-      setJobs(data.jobs || []);
-      setGeneratedDocs(data.generatedDocs || null);
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Something went wrong talking to the backend." }
-      ]);
-    } finally {
-      setIsSending(false);
+    while (!done) {
+      const status = await getWorkflowStatus(start.workflow_id);
+
+      if (status.status === "completed") {
+        done = true;
+        result = status;
+      } else if (status.status === "failed") {
+        throw new Error("Workflow failed");
+      }
+
+      await new Promise((res) => setTimeout(res, pollInterval));
     }
-  };
+
+    // 3. Extract messages + job results
+    const assistantReply =
+      result.user_goal ||
+      "Your request was processed. Here is the workflow result.";
+
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: assistantReply }
+    ]);
+
+    // jobs appear in task_results
+    const jobTask = result.tasks?.find(
+      (t) => t.task_type === "job_search"
+    );
+    setJobs(jobTask?.output?.top_matches || []);
+
+  } catch (err) {
+    console.error(err);
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: "Something went wrong." }
+    ]);
+  } finally {
+    setIsSending(false);
+  }
+};
 
   const handleApplyClick = (job) => {
     setSelectedJob(job);
     setShowConsent(true);
   };
 
-  const confirmApply = async () => {
-    if (!selectedJob) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/apply`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobId: selectedJob.id,
-          provider: selectedJob.provider,
-          userId: "demo-user",
-          allowAutoApply: true
-        })
-      });
+const confirmApply = async () => {
+  if (!selectedJob) return;
+  setShowConsent(false);
 
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
+  try {
+    // 1. Start apply workflow
+    const start = await fetch(`${API_BASE}/workflow/apply/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        job: selectedJob,
+        userId: "demo-user"
+      })
+    }).then((r) => r.json());
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `I submitted your application for "${selectedJob.title}" at ${selectedJob.company} (simulated).`
-        }
-      ]);
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Failed to apply for the job." }
-      ]);
-    } finally {
-      setShowConsent(false);
-      setSelectedJob(null);
+    if (!start.workflow_id) throw new Error("No workflow ID received");
+
+    let done = false;
+    let pollResult = null;
+
+    // 2. Poll for completion
+    while (!done) {
+      const status = await fetch(
+        `${API_BASE}/workflow/status/${start.workflow_id}`
+      ).then((r) => r.json());
+
+      if (status.status === "completed") {
+        done = true;
+        pollResult = status;
+      } else if (status.status === "failed") {
+        throw new Error("Workflow failed");
+      }
+
+      await new Promise((res) => setTimeout(res, 1200));
     }
-  };
+
+    // 3. Extract generated docs from the workflow
+    const resumeTask = pollResult.tasks?.find(t => t.task_type === "resume_creation");
+    const coverTask = pollResult.tasks?.find(t => t.task_type === "cover_letter");
+
+    const tailoredResume = resumeTask?.output?.resume_text;
+    const tailoredCover = coverTask?.output?.cover_letter;
+
+    setGeneratedDocs({
+      cv: tailoredResume || "Resume generated.",
+      coverLetter: tailoredCover || "Cover letter generated."
+    });
+
+    // 4. Chat feedback
+    setMessages(prev => [
+      ...prev,
+      {
+        role: "assistant",
+        content: `Your application for "${selectedJob.title}" at ${selectedJob.company} is ready with tailored documents!`
+      }
+    ]);
+
+  } catch (err) {
+    console.error(err);
+    setMessages(prev => [
+      ...prev,
+      { role: "assistant", content: "Application workflow failed." }
+    ]);
+  } finally {
+    setSelectedJob(null);
+  }
+};
 
   return (
     <div className="app-root">
