@@ -1,19 +1,33 @@
 # backend/main.py
 import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from app.agents.PlannerAgent import PlannerAgent
-from app.agents.UploadResume import UploadResumeAgent
+from app.agents.UploadResume import ResumeParser
 from app.memory.vector import VectorStore
+from app.api.routes import api_router
 
-app = FastAPI(title="JobSearch Co-Pilot API (Python Orchestrator)")
+app = FastAPI(title="JobSearch Co-Pilot API (Python Orchestrator)",debug=True)
+
+# Allow frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_headers=["*"],
+    allow_methods=["*"],
+)
+
+# Register your frontend-compatible API
+app.include_router(api_router)
+
 
 # ------------------------------------------------------
 # GLOBAL AGENT SINGLETONS
 # ------------------------------------------------------
 planner = PlannerAgent()
-uploader = UploadResumeAgent()
+uploader = ResumeParser()
 vector_store = VectorStore()
 
 # ------------------------------------------------------

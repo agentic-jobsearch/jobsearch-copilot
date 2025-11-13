@@ -116,41 +116,73 @@ function App() {
     setShowConsent(true);
   };
 
-  const confirmApply = async () => {
-    if (!selectedJob) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/apply`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobId: selectedJob.id,
-          provider: selectedJob.provider,
-          userId: "demo-user",
-          allowAutoApply: true
-        })
-      });
+const confirmApply = async () => {
+  if (!selectedJob) return;
+  setShowConsent(false);
 
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
+  try {
+    // 1. Start apply workflow
+    const start = await fetch(`${API_BASE}/workflow/apply/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        job: selectedJob,
+        userId: "demo-user"
+      })
+    }).then((r) => r.json());
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `I submitted your application for "${selectedJob.title}" at ${selectedJob.company} (simulated).`
-        }
-      ]);
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Failed to apply for the job." }
-      ]);
-    } finally {
-      setShowConsent(false);
-      setSelectedJob(null);
+    if (!start.workflow_id) throw new Error("No workflow ID received");
+
+    let done = false;
+    let pollResult = null;
+
+    // 2. Poll for completion
+    while (!done) {
+      const status = await fetch(
+        `${API_BASE}/workflow/status/${start.workflow_id}`
+      ).then((r) => r.json());
+
+      if (status.status === "completed") {
+        done = true;
+        pollResult = status;
+      } else if (status.status === "failed") {
+        throw new Error("Workflow failed");
+      }
+
+      await new Promise((res) => setTimeout(res, 1200));
     }
-  };
+
+    // 3. Extract generated docs from the workflow
+    const resumeTask = pollResult.tasks?.find(t => t.task_type === "resume_creation");
+    const coverTask = pollResult.tasks?.find(t => t.task_type === "cover_letter");
+
+    const tailoredResume = resumeTask?.output?.resume_text;
+    const tailoredCover = coverTask?.output?.cover_letter;
+
+    setGeneratedDocs({
+      cv: tailoredResume || "Resume generated.",
+      coverLetter: tailoredCover || "Cover letter generated."
+    });
+
+    // 4. Chat feedback
+    setMessages(prev => [
+      ...prev,
+      {
+        role: "assistant",
+        content: `Your application for "${selectedJob.title}" at ${selectedJob.company}" is ready with tailored documents!`
+      }
+    ]);
+
+  } catch (err) {
+    console.error(err);
+    setMessages(prev => [
+      ...prev,
+      { role: "assistant", content: "Application workflow failed." }
+    ]);
+  } finally {
+    setSelectedJob(null);
+  }
+};
 
   return (
     <div className="app-root">
