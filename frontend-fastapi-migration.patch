@@ -1,0 +1,263 @@
+diff --git a/frontend/src/App.jsx b/frontend/src/App.jsx
+index 2f43ccd..d3f0aa1 100644
+--- a/frontend/src/App.jsx
++++ b/frontend/src/App.jsx
+@@ -1,6 +1,8 @@
+ import { useState, useRef } from "react";
+ import ChatWindow from "./components/ChatWindow.jsx";
+ import JobList from "./components/JobList.jsx";
+ import ConsentModal from "./components/ConsentModal.jsx";
+ import "./App.css";
+-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
++
++import { uploadDocs, startWorkflow, getWorkflowStatus } from "./api/jobcopilot.js";
++
+ 
+ function App() {
+@@ -49,41 +51,32 @@ const App = () => {
+   const handleUpload = async () => {
+     const cvFile = cvInputRef.current.files[0];
+     const transcriptFile = transcriptInputRef.current.files[0];
+ 
+-    if (!cvFile && !transcriptFile) {
+-      alert("Please upload at least a CV or transcript.");
+-      return;
+-    }
+-
+-    const formData = new FormData();
+-    if (cvFile) formData.append("cv", cvFile);
+-    if (transcriptFile) formData.append("transcript", transcriptFile);
+-    formData.append("userId", "demo-user");
+-
+     try {
+-      const res = await fetch(`${API_BASE}/api/upload-docs`, {
+-        method: "POST",
+-        body: formData
+-      });
+-      if (!res.ok) {
+-        throw new Error("Upload failed");
+-      }
++      await uploadDocs(cvFile, transcriptFile);
+       setMessages((prev) => [
+         ...prev,
+         {
+           role: "assistant",
+           content:
+-            "Thanks! Now type or say what kind of roles you are targeting (e.g., “junior data scientist in Florida”)."
++            "Documents uploaded! Now tell me your goal (e.g., 'Find data science jobs in Florida')."
+         }
+       ]);
+     } catch (err) {
+       console.error(err);
+       setMessages((prev) => [
+         ...prev,
+-        { role: "assistant", content: "Something went wrong uploading your documents." }
++        { role: "assistant", content: "Document upload failed." }
+       ]);
+     }
+   };
+ 
+@@ -94,52 +87,104 @@ const sendMessage = async (text) => {
+     setMessages((prev) => [...prev, userMsg]);
+     setIsSending(true);
+ 
+     try {
+-      const res = await fetch(`${API_BASE}/api/chat`, {
+-        method: "POST",
+-        headers: { "Content-Type": "application/json" },
+-        body: JSON.stringify({
+-          message: text,
+-          language,
+-          userId: "demo-user"
+-        })
+-      });
+-
+-      const data = await res.json();
+-      if (data.error) throw new Error(data.error);
+-
+-      const assistantMsg = { role: "assistant", content: data.reply };
+-      setMessages((prev) => [...prev, assistantMsg]);
+-      setJobs(data.jobs || []);
+-      setGeneratedDocs(data.generatedDocs || null);
++      // 1. Start workflow
++      const start = await startWorkflow(text, language);
++      if (!start.workflow_id) throw new Error("No workflow_id received");
++
++      let done = false;
++      let pollInterval = 1200;
++      let result = null;
++
++      // 2. Poll status until completed
++      while (!done) {
++        const status = await getWorkflowStatus(start.workflow_id);
++
++        if (status.status === "completed") {
++          done = true;
++          result = status;
++        } else if (status.status === "failed") {
++          throw new Error("Workflow failed");
++        }
++
++        await new Promise((res) => setTimeout(res, pollInterval));
++      }
++
++      // 3. Extract assistant reply
++      const assistantReply =
++        result.user_goal ||
++        "Your request was processed. Here is the workflow result.";
++
++      setMessages((prev) => [
++        ...prev,
++        { role: "assistant", content: assistantReply }
++      ]);
++
++      // 4. Extract jobs (if job_search task exists)
++      const jobTask = result.tasks?.find(
++        (t) => t.task_type === "job_search"
++      );
++      setJobs(jobTask?.output?.top_matches || []);
+ 
+     } catch (err) {
+       console.error(err);
+       setMessages((prev) => [
+         ...prev,
+         { role: "assistant", content: "Something went wrong talking to the backend." }
+       ]);
+     } finally {
+       setIsSending(false);
+     }
+   };
+ 
+@@ -153,37 +198,93 @@ const confirmApply = async () => {
+     if (!selectedJob) return;
+     try {
+-      const res = await fetch(`${API_BASE}/api/apply`, {
+-        method: "POST",
+-        headers: { "Content-Type": "application/json" },
+-        body: JSON.stringify({
+-          jobId: selectedJob.id,
+-          provider: selectedJob.provider,
+-          userId: "demo-user",
+-          allowAutoApply: true
+-        })
+-      });
+-
+-      const data = await res.json();
+-      if (data.error) throw new Error(data.error);
+-
+-      setMessages((prev) => [
+-        ...prev,
+-        {
+-          role: "assistant",
+-          content: `I submitted your application for "${selectedJob.title}" at ${selectedJob.company} (simulated).`
+-        }
+-      ]);
++      // 1. Start apply workflow
++      const start = await fetch(`${API_BASE}/workflow/apply/start`, {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify({
++          job: selectedJob,
++          userId: "demo-user"
++        })
++      }).then((r) => r.json());
++
++      if (!start.workflow_id) throw new Error("No workflow ID received");
++
++      let done = false;
++      let pollResult = null;
++
++      // 2. Poll status
++      while (!done) {
++        const status = await fetch(
++          `${API_BASE}/workflow/status/${start.workflow_id}`
++        ).then((r) => r.json());
++
++        if (status.status === "completed") {
++          done = true;
++          pollResult = status;
++        } else if (status.status === "failed") {
++          throw new Error("Workflow failed");
++        }
++
++        await new Promise((res) => setTimeout(res, 1200));
++      }
++
++      // 3. Extract generated docs
++      const resumeTask = pollResult.tasks?.find(
++        (t) => t.task_type === "resume_creation"
++      );
++      const coverTask = pollResult.tasks?.find(
++        (t) => t.task_type === "cover_letter"
++      );
++
++      const tailoredResume = resumeTask?.output?.resume_text;
++      const tailoredCover = coverTask?.output?.cover_letter;
++
++      setGeneratedDocs({
++        cv: tailoredResume || "Resume generated.",
++        coverLetter: tailoredCover || "Cover letter generated."
++      });
++
++      // 4. Add assistant message
++      setMessages((prev) => [
++        ...prev,
++        {
++          role: "assistant",
++          content: `Your application for "${selectedJob.title}" at ${selectedJob.company}" is ready with tailored documents!`
++        }
++      ]);
++
+     } catch (err) {
+       console.error(err);
+       setMessages((prev) => [
+         ...prev,
+         { role: "assistant", content: "Failed to apply for the job." }
+       ]);
+     } finally {
+       setShowConsent(false);
+       setSelectedJob(null);
+     }
+   };
+diff --git a/frontend/src/components/JobList.jsx b/frontend/src/components/JobList.jsx
+index fb5df23..c88c41d 100644
+--- a/frontend/src/components/JobList.jsx
++++ b/frontend/src/components/JobList.jsx
+@@ -9,7 +9,14 @@ export default function JobList({ jobs, generatedDocs, onApplyClick }) {
+       <div className="jobs-list">
+         {jobs.length === 0 && (
+           <p className="jobs-empty">
+             No jobs yet. Try: “Find junior software engineering jobs in Florida”.
+           </p>
+         )}
+ 
+-        {jobs.map((job) => (
++        {jobs.map((job) => {
++          const matchScore = job.matchScore ?? job.match_score ?? 0;
++          const jobId = job.id || job.job_id;
++
++          return (
+-          <div key={job.id} className="job-item">
++          <div key={jobId} className="job-item">
+             <div className="job-main">
+               <div>
+                 <div className="job-title">{job.title}</div>
+@@ -19,7 +26,7 @@ export default function JobList({ jobs, generatedDocs, onApplyClick }) {
+               </div>
+               <button
+                 className="job-apply-btn"
+-                onClick={() => onApplyClick(job)}
++                onClick={() => onApplyClick(job)}
+                 aria-label={`Apply to ${job.title} at ${job.company}`}
+               >
+                 Apply
+@@ -33,7 +40,7 @@ export default function JobList({ jobs, generatedDocs, onApplyClick }) {
+               rel="noopener noreferrer"
+               className="job-link"
+             >
+               View posting
+             </a>
+-          </div>
++          </div>
+         ))}
+       </div>
