@@ -70,8 +70,11 @@ function App() {
     let done = false;
     let pollInterval = 1200;
     let result = null;
+    let maxAttempts = 50; // 1 minute at 1200ms intervals
+    let attempts = 0;
 
-    while (!done) {
+    while (!done && attempts < maxAttempts) {
+      attempts++;
       const status = await getWorkflowStatus(start.workflow_id);
 
       if (status.status === "completed") {
@@ -81,7 +84,13 @@ function App() {
         throw new Error("Workflow failed");
       }
 
-      await new Promise((res) => setTimeout(res, pollInterval));
+      if (!done) {
+        await new Promise((res) => setTimeout(res, pollInterval));
+      }
+    }
+
+    if (attempts >= maxAttempts) {
+      throw new Error("Workflow timeout");
     }
 
     // 3. Extract messages + job results
@@ -135,9 +144,12 @@ const confirmApply = async () => {
 
     let done = false;
     let pollResult = null;
+    let maxAttempts = 50; // 1 minute at 1200ms intervals
+    let attempts = 0;
 
     // 2. Poll for completion
-    while (!done) {
+    while (!done && attempts < maxAttempts) {
+      attempts++;
       const status = await fetch(
         `${API_BASE}/workflow/status/${start.workflow_id}`
       ).then((r) => r.json());
@@ -149,7 +161,13 @@ const confirmApply = async () => {
         throw new Error("Workflow failed");
       }
 
-      await new Promise((res) => setTimeout(res, 1200));
+      if (!done) {
+        await new Promise((res) => setTimeout(res, 1200));
+      }
+    }
+
+    if (attempts >= maxAttempts) {
+      throw new Error("Workflow timeout");
     }
 
     // 3. Extract generated docs from the workflow
