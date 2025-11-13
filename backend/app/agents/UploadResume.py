@@ -114,7 +114,7 @@ class ResumeParser:
 
             try:
                 return json.loads(raw)
-            except:
+            except json.JSONDecodeError:
                 return {"raw": raw, "error": "Invalid JSON from model"}
 
         except Exception as e:
