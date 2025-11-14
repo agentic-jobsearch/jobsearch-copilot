@@ -168,7 +168,7 @@ function App() {
 
     const notes = analysisTask?.output?.notes;
     if (notes) {
-      replySections.push(`Notes: ${notes}`);
+      replySections.push(notes);
     }
 
     const insights = analysisTask?.output?.profile_insights;
@@ -180,6 +180,14 @@ function App() {
     }
     if (insights?.recent_role) {
       replySections.push(`Recent role: ${insights.recent_role}`);
+    }
+
+    const insightSummary = analysisTask?.output?.insight_summary;
+    if (insightSummary?.skills?.length && !insights?.skills?.length) {
+      replySections.push(`Key skills: ${insightSummary.skills.join(", ")}`);
+    }
+    if (insightSummary?.recent_role && !insights?.recent_role) {
+      replySections.push(`Recent role: ${insightSummary.recent_role}`);
     }
 
     const jobSearchRan = jobTask?.output?.searched;

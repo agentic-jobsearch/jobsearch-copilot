@@ -210,14 +210,10 @@ class PlannerAgent:
         )
 
         if profile_question and profile_insights:
-            summary_bits = []
-            if profile_insights.get("skills"):
-                summary_bits.append(
-                    "Key skills: " + ", ".join(profile_insights["skills"])
-                )
-            if profile_insights.get("recent_role"):
-                summary_bits.append(f"Recent role: {profile_insights['recent_role']}")
-            parsed["notes"] = "\n".join(filter(None, [parsed.get("notes", ""), *summary_bits])).strip()
+            parsed["insight_summary"] = {
+                "skills": profile_insights.get("skills", []),
+                "recent_role": profile_insights.get("recent_role"),
+            }
 
         # Determine whether to search BigQuery
         should_search = any(
@@ -290,6 +286,7 @@ class PlannerAgent:
                     "actions": plan.plan_details.get("actions", []),
                     "notes": plan.plan_details.get("notes"),
                     "profile_insights": plan.plan_details.get("profile_insights"),
+                    "insight_summary": plan.plan_details.get("insight_summary"),
                 }
             elif task.task_type == "job_search":
                 task.status = "completed"

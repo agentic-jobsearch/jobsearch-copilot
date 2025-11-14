@@ -117,9 +117,19 @@ class ResumeParser:
             )
 
             raw = response.choices[0].message.content.strip()
+            cleaned = raw.strip()
+
+            if cleaned.startswith("```"):
+                cleaned = cleaned[3:]
+                if cleaned.startswith("json"):
+                    newline_idx = cleaned.find("\n")
+                    cleaned = cleaned[newline_idx + 1 :] if newline_idx != -1 else ""
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3]
+                cleaned = cleaned.strip()
 
             try:
-                return json.loads(raw)
+                return json.loads(cleaned)
             except json.JSONDecodeError:
                 return {"raw": raw, "error": "Invalid JSON from model"}
 
