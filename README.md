@@ -86,23 +86,14 @@ Assign the following roles to your service account:
 1. Create/update the `.env` file in your project root:
 ```bash
 
-### I have created the service account for everyone so you can skip this step 1,2,3 from google cloud setup and directly download the json file from teams chat that I have sent to individuals. 
+pip install -r requirements.txt
 
-
-## QA Agent (BigQuery Question Answering)
+# Backend
 cd backend
-python app/agents/QAAgent.py
+uvicorn main:app --reload
 
-
-#### To Run frontend and backend
-Installation Dependencies 
-
-Backend- 
-
-cd backend
-node server.js
-
-Frontend- 
-
+# Frontend- (in a separate terminal)
 cd frontend
+npm install
 npm run dev
+```
