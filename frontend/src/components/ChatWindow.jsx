@@ -9,7 +9,13 @@ const SpeechRecognition =
     ? window.SpeechRecognition || window.webkitSpeechRecognition
     : null;
 
-export default function ChatWindow({ messages, onSendMessage, disabled, language }) {
+export default function ChatWindow({
+  messages,
+  onSendMessage,
+  disabled,
+  language,
+  isProcessing
+}) {
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
   const recRef = useRef(null);
@@ -56,14 +62,23 @@ export default function ChatWindow({ messages, onSendMessage, disabled, language
       <div className="chat-messages" aria-label="Chat history">
         {messages.map((m, idx) => (
           <div
-            key={idx}
+            key={m.id || idx}
             className={
-              m.role === "assistant" ? "chat-bubble assistant" : "chat-bubble user"
+              m.role === "assistant"
+                ? `chat-bubble assistant ${m.typing ? "typing" : ""}`
+                : "chat-bubble user"
             }
           >
             {m.content}
           </div>
         ))}
+        {isProcessing && (
+          <div className="chat-bubble assistant typing-indicator" aria-live="polite">
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+          </div>
+        )}
       </div>
 
       <form className="chat-input-row" onSubmit={handleSubmit}>

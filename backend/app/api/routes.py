@@ -1,6 +1,7 @@
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.agents.UploadResume import ResumeParser
 from app.agents.PlannerAgent import PlannerAgent
+from app.state.user_profiles import set_profile, get_profile
 
 api_router = APIRouter()
 
@@ -13,22 +14,43 @@ async def upload_docs(
     transcript: UploadFile = File(None),
     userId: str = Form(...)
 ):
-    saved_files = {}
-    for file in [cv, transcript]:
-        if file:
-            path = f"/tmp/{file.filename}"
-            with open(path, "wb") as f:
-                f.write(await file.read())
-            saved_files[file.filename] = path
+    if not (cv or transcript):
+        raise HTTPException(status_code=400, detail="Upload at least one document.")
 
-    return {"ok": True, "files": list(saved_files.keys())}
+    saved_files = {}
+    parsed_profile = None
+
+    async def _save_file(upload: UploadFile):
+        path = f"/tmp/{upload.filename}"
+        with open(path, "wb") as f:
+            f.write(await upload.read())
+        saved_files[upload.filename] = path
+        return path
+
+    cv_path = None
+    transcript_path = None
+
+    if cv:
+        cv_path = await _save_file(cv)
+    if transcript:
+        transcript_path = await _save_file(transcript)
+
+    source_path = cv_path or transcript_path
+    if source_path:
+        parsed_profile = parser.process(source_path)
+        set_profile(userId, parsed_profile)
+
+    return {
+        "ok": True,
+        "files": list(saved_files.keys()),
+        "profile": parsed_profile
+    }
 
 @api_router.post("/api/chat")
 async def chat_endpoint(payload: dict):
     message = payload["message"]
     language = payload.get("language", "en")
-
-    user_profile = None
+    user_profile = get_profile(payload.get("userId"))
 
     result = planner.plan(
         message=message,

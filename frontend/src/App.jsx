@@ -1,15 +1,22 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import ChatWindow from "./components/ChatWindow.jsx";
 import JobList from "./components/JobList.jsx";
 import ConsentModal from "./components/ConsentModal.jsx";
 import "./App.css";
 
-import { uploadDocs, startWorkflow, getWorkflowStatus } from "./api/jobcopilot.js";
+import {
+  uploadDocs,
+  startWorkflow,
+  getWorkflowStatus,
+  submitApplication
+} from "./api/jobcopilot.js";
 
+const generateMessageId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 function App() {
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState(() => [
     {
+      id: generateMessageId(),
       role: "assistant",
       content:
         "Hi, I’m your Job Agent. Upload your CV & transcript, tell me your career goal, and I’ll find and apply to aligned jobs for you."
@@ -22,9 +29,57 @@ function App() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [isSending, setIsSending] = useState(false);
   const [activePage, setActivePage] = useState("chats");
+  const [profile, setProfile] = useState(null);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const cvInputRef = useRef(null);
   const transcriptInputRef = useRef(null);
+  const typingTimers = useRef([]);
+
+  useEffect(() => {
+    return () => {
+      typingTimers.current.forEach((timer) => clearInterval(timer));
+      typingTimers.current = [];
+    };
+  }, []);
+
+  const pushMessage = (message) => {
+    const msg = { id: generateMessageId(), ...message };
+    setMessages((prev) => [...prev, msg]);
+    return msg;
+  };
+
+  const addAssistantMessageAnimated = (text) => {
+    const safeText = text || "I processed your request.";
+    const id = generateMessageId();
+    const typingMessage = { id, role: "assistant", content: "", typing: true };
+    setMessages((prev) => [...prev, typingMessage]);
+
+    let index = 0;
+    const interval = setInterval(() => {
+      index += 1;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === id
+            ? { ...msg, content: safeText.slice(0, index) }
+            : msg
+        )
+      );
+
+      if (index >= safeText.length) {
+        clearInterval(interval);
+        typingTimers.current = typingTimers.current.filter((t) => t !== interval);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === id ? { ...msg, typing: false, content: safeText } : msg
+          )
+        );
+      }
+    }, 15);
+
+    typingTimers.current.push(interval);
+  };
 
   const handleUpload = async () => {
     const cvFile = cvInputRef.current.files[0];
@@ -36,34 +91,38 @@ function App() {
     }
 
     try {
-      await uploadDocs(cvFile, transcriptFile);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "Documents uploaded! Now tell me your goal (e.g., 'Find data science jobs in Florida')."
-        }
-      ]);
+      setIsUploading(true);
+      const response = await uploadDocs(cvFile, transcriptFile);
+      setProfile(response.profile || null);
+      if (response.files?.length) {
+        setUploadedFiles((prev) => {
+          const existing = new Set(prev);
+          response.files.forEach((file) => existing.add(file));
+          return Array.from(existing);
+        });
+      }
+      pushMessage({
+        role: "assistant",
+        content:
+          "Documents uploaded! Now tell me your goal (e.g., 'Find data science jobs in Florida')."
+      });
     } catch (err) {
       console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Document upload failed." }
-      ]);
+      pushMessage({ role: "assistant", content: "Document upload failed." });
+    } finally {
+      setIsUploading(false);
     }
   };
 
 
   const sendMessage = async (text) => {
   if (!text.trim()) return;
-  const userMsg = { role: "user", content: text };
-  setMessages((prev) => [...prev, userMsg]);
+  pushMessage({ role: "user", content: text });
   setIsSending(true);
 
   try {
     // 1. Start workflow
-    const start = await startWorkflow(text, language);
+    const start = await startWorkflow(text, language, profile);
     if (!start.workflow_id) throw new Error("No workflow_id received");
 
     // 2. Poll status until finished
@@ -93,28 +152,61 @@ function App() {
       throw new Error("Workflow timeout");
     }
 
-    // 3. Extract messages + job results
-    const assistantReply =
-      result.user_goal ||
-      "Your request was processed. Here is the workflow result.";
-
-    setMessages((prev) => [
-      ...prev,
-      { role: "assistant", content: assistantReply }
-    ]);
-
-    // jobs appear in task_results
-    const jobTask = result.tasks?.find(
-      (t) => t.task_type === "job_search"
+    const analysisTask = result.tasks?.find(
+      (t) => t.task_id === "goal_understanding" || t.task_type === "analysis"
     );
-    setJobs(jobTask?.output?.top_matches || []);
+    const jobTask = result.tasks?.find((t) => t.task_type === "job_search");
+    const jobMatches = jobTask?.output?.top_matches || [];
+
+    const replySections = [];
+
+    const actions = analysisTask?.output?.actions;
+    if (actions?.length) {
+      const bullets = actions.map((action) => `• ${action}`).join("\n");
+      replySections.push(`Suggested plan:\n${bullets}`);
+    }
+
+    const notes = analysisTask?.output?.notes;
+    if (notes) {
+      replySections.push(`Notes: ${notes}`);
+    }
+
+    const insights = analysisTask?.output?.profile_insights;
+    if (insights?.headline) {
+      replySections.push(`Profile: ${insights.headline}`);
+    }
+    if (insights?.skills?.length) {
+      replySections.push(`Key skills: ${insights.skills.join(", ")}`);
+    }
+    if (insights?.recent_role) {
+      replySections.push(`Recent role: ${insights.recent_role}`);
+    }
+
+    const jobSearchRan = jobTask?.output?.searched;
+
+    if (jobMatches.length) {
+      const jobLines = jobMatches.slice(0, 3).map((job) => {
+        const company = job.company || job.company_name || job.company_urn || "Company";
+        const location = job.location || "Location not provided";
+        return `• ${job.job_title} @ ${company} (${location})`;
+      });
+      replySections.push(
+        `Top matches (${jobMatches.length} found):\n${jobLines.join("\n")}`
+      );
+    } else if (jobSearchRan) {
+      replySections.push("No strong matches yet. Try refining the goal or location.");
+    }
+
+    if (!replySections.length) {
+      replySections.push("I'm processing your request.");
+    }
+
+    addAssistantMessageAnimated(replySections.join("\n\n"));
+    setJobs(jobMatches);
 
   } catch (err) {
     console.error(err);
-    setMessages((prev) => [
-      ...prev,
-      { role: "assistant", content: "Something went wrong." }
-    ]);
+    pushMessage({ role: "assistant", content: "Something went wrong." });
   } finally {
     setIsSending(false);
   }
@@ -130,73 +222,20 @@ const confirmApply = async () => {
   setShowConsent(false);
 
   try {
-    // 1. Start apply workflow
-    const start = await fetch(`${API_BASE}/workflow/apply/start`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        job: selectedJob,
-        userId: "demo-user"
-      })
-    }).then((r) => r.json());
-
-    if (!start.workflow_id) throw new Error("No workflow ID received");
-
-    let done = false;
-    let pollResult = null;
-    let maxAttempts = 50; // 1 minute at 1200ms intervals
-    let attempts = 0;
-
-    // 2. Poll for completion
-    while (!done && attempts < maxAttempts) {
-      attempts++;
-      const status = await fetch(
-        `${API_BASE}/workflow/status/${start.workflow_id}`
-      ).then((r) => r.json());
-
-      if (status.status === "completed") {
-        done = true;
-        pollResult = status;
-      } else if (status.status === "failed") {
-        throw new Error("Workflow failed");
-      }
-
-      if (!done) {
-        await new Promise((res) => setTimeout(res, 1200));
-      }
-    }
-
-    if (attempts >= maxAttempts) {
-      throw new Error("Workflow timeout");
-    }
-
-    // 3. Extract generated docs from the workflow
-    const resumeTask = pollResult.tasks?.find(t => t.task_type === "resume_creation");
-    const coverTask = pollResult.tasks?.find(t => t.task_type === "cover_letter");
-
-    const tailoredResume = resumeTask?.output?.resume_text;
-    const tailoredCover = coverTask?.output?.cover_letter;
+    await submitApplication(selectedJob);
 
     setGeneratedDocs({
-      cv: tailoredResume || "Resume generated.",
-      coverLetter: tailoredCover || "Cover letter generated."
+      cv: "Resume will be generated in future iterations.",
+      coverLetter: "Cover letter will be generated in future iterations."
     });
 
-    // 4. Chat feedback
-    setMessages(prev => [
-      ...prev,
-      {
-        role: "assistant",
-        content: `Your application for "${selectedJob.title}" at ${selectedJob.company} is ready with tailored documents!`
-      }
-    ]);
-
+    pushMessage({
+      role: "assistant",
+      content: `Application submitted for "${selectedJob.title}" at ${selectedJob.company}.`
+    });
   } catch (err) {
     console.error(err);
-    setMessages(prev => [
-      ...prev,
-      { role: "assistant", content: "Application workflow failed." }
-    ]);
+    pushMessage({ role: "assistant", content: "Application workflow failed." });
   } finally {
     setSelectedJob(null);
   }
@@ -277,7 +316,21 @@ const confirmApply = async () => {
                 ref={transcriptInputRef}
                 aria-label="Upload academic transcript"
               />
-              <button onClick={handleUpload}>Upload</button>
+              <button
+                type="button"
+                onClick={handleUpload}
+                disabled={isUploading}
+                className={`upload-btn ${isUploading ? "uploading" : ""}`}
+              >
+                {isUploading ? (
+                  <>
+                    <span className="upload-spinner" />
+                    Uploading...
+                  </>
+                ) : (
+                  "Upload"
+                )}
+              </button>
             </div>
             <div className="language-select">
               <label>Language:</label>
@@ -317,12 +370,15 @@ const confirmApply = async () => {
                 onSendMessage={sendMessage}
                 disabled={isSending}
                 language={language}
+                isProcessing={isSending}
               />
             </div>
             <div className="content-right">
               <JobList
                 jobs={jobs}
                 generatedDocs={generatedDocs}
+                uploadedFiles={uploadedFiles}
+                profile={profile}
                 onApplyClick={handleApplyClick}
               />
             </div>

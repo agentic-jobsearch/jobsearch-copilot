@@ -215,6 +215,26 @@ body {
   cursor: pointer;
 }
 
+.upload-inputs .upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload-inputs .upload-btn.uploading {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.upload-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 .language-select {
   display: flex;
   align-items: center;
@@ -331,6 +351,7 @@ body {
   font-size: 0.8rem;
   padding: 8px 10px;
   border-radius: 14px;
+  white-space: pre-line;
 }
 
 .chat-bubble.assistant {
@@ -338,9 +359,58 @@ body {
   background: rgba(30, 64, 175, 0.9);
 }
 
+.chat-bubble.assistant.typing {
+  opacity: 0.9;
+}
+
 .chat-bubble.user {
   align-self: flex-end;
   background: linear-gradient(135deg, #48c6ef, #6f86ff);
+}
+
+.typing-indicator {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  opacity: 0.5;
+  animation: typingBlink 1s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typingBlink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0px);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .chat-input-row {
@@ -390,6 +460,82 @@ body {
   padding: 14px;
   display: flex;
   flex-direction: column;
+}
+
+.uploaded-files-card {
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  border-radius: 14px;
+  padding: 10px;
+  margin-bottom: 12px;
+  font-size: 0.75rem;
+}
+
+.uploaded-files-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.uploaded-files-card ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.uploaded-files-card li {
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(55, 65, 81, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-summary-card {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 10px;
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.profile-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.profile-summary-body p {
+  margin: 0 0 6px 0;
+  color: #e5e7eb;
+}
+
+.profile-summary-placeholder {
+  color: #9ca3af;
+}
+
+.profile-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.profile-skills span {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  font-size: 0.7rem;
 }
 
 .jobs-title {
