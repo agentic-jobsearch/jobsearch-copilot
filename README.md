@@ -97,3 +97,4 @@ cd frontend
 npm install
 npm run dev
 ```
+Opeh http://localhost:5173/ in a browser to use the app.
