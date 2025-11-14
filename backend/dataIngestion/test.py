@@ -1,9 +1,13 @@
 from google.cloud import bigquery
 from google.oauth2 import service_account
 import os
+from pathlib import Path
 from dotenv import load_dotenv
+from app.core.env import require_env
 
-load_dotenv()
+OPENAI_KEY = require_env("OPENAI_API_KEY")
+self.client = OpenAI(api_key=OPENAI_KEY)
+
 
 # Path to your service account key 
 # python backend\dataIngestion\test.py

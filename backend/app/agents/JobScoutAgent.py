@@ -2,10 +2,14 @@ import os
 import json
 from typing import Dict, List
 from openai import OpenAI
+from pathlib import Path
 from dotenv import load_dotenv
 from google.cloud import bigquery
+from app.core.env import require_env
 
-load_dotenv()
+OPENAI_KEY = require_env("OPENAI_API_KEY")
+self.client = OpenAI(api_key=OPENAI_KEY)
+
 
 
 class JobScoutAgent:
