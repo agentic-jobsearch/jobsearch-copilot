@@ -21,6 +21,7 @@ class ResumeParser:
     def __init__(self):
         # FIX: use the validated key
         self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        self.client = self.openai_client
         print("ResumeParser initialized successfully")
 
 

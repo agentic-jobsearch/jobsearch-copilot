@@ -17,6 +17,7 @@ from app.agents.PlannerAgent import PlannerAgent
 from app.agents.UploadResume import ResumeParser
 from app.memory.vector import VectorStore
 from app.api.routes import api_router
+from app.state.user_profiles import get_profile
 
 app = FastAPI(title="JobSearch Co-Pilot API (Python Orchestrator)",debug=True)
 
@@ -58,7 +59,16 @@ def health():
 # ------------------------------------------------------
 @app.post("/workflow/start")
 def start_workflow(payload: StartWorkflowInput):
-    plan = planner.create_workflow_plan(payload.user_message, payload.user_data)
+    user_data = payload.user_data or {}
+    profile = user_data.get("profile")
+    user_id = user_data.get("userId")
+
+    if not profile and user_id:
+        stored_profile = get_profile(user_id)
+        if stored_profile:
+            user_data["profile"] = stored_profile
+
+    plan = planner.create_workflow_plan(payload.user_message, user_data)
     planner.active_workflows[plan.plan_id] = plan
 
     return {
