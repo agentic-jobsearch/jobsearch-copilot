@@ -1,10 +1,14 @@
 #Important libraries to test connections to BigQuery and OpenAI.
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from google.cloud import bigquery
 from google.oauth2 import service_account
+from app.core.env import require_env
 
-load_dotenv()
+OPENAI_KEY = require_env("OPENAI_API_KEY")
+self.client = OpenAI(api_key=OPENAI_KEY)
+
 
 # Test BigQuery connection
 def test_bigquery_connection():

@@ -1,4 +1,13 @@
 # backend/main.py
+from app.core.env import load_env, validate_environment
+
+# Load .env from infra directory
+ENV_PATH = load_env()
+print(f"Loaded environment from: {ENV_PATH}")
+
+# Validate all required keys
+validate_environment()
+
 import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

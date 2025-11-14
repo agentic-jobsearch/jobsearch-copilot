@@ -1,26 +1,28 @@
 import os
 import json
-from typing import Dict
+import re
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 import PyPDF2
 from docx import Document
-from dotenv import load_dotenv
 from openai import OpenAI
+from dotenv import load_dotenv
+from app.core.env import require_env
 
 load_dotenv()
 
+# FIX: load required key at module level
+OPENAI_API_KEY = require_env("OPENAI_API_KEY")
+
 
 class ResumeParser:
-    """
-    Simplified, production-ready resume parser.
-    - Extracts plaintext from PDF, DOCX, TXT
-    - Sends to OpenAI for structured profile parsing
-    - Returns minimal, clean JSON
-    """
+    """Parse uploaded resumes and convert to UserProfile JSON"""
 
     def __init__(self):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        print("Simplified ResumeParser initialized")
+        # FIX: use the validated key
+        self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        print("ResumeParser initialized successfully")
+
 
     # -------------------------
     # FILE EXTRACTION

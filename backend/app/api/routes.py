@@ -5,8 +5,6 @@ from app.agents.PlannerAgent import PlannerAgent
 api_router = APIRouter()
 
 parser = ResumeParser()
-# profile = parser.process(file_path)
-
 planner = PlannerAgent()
 
 @api_router.post("/api/upload-docs")
@@ -15,7 +13,6 @@ async def upload_docs(
     transcript: UploadFile = File(None),
     userId: str = Form(...)
 ):
-    # Save files to temporary location
     saved_files = {}
     for file in [cv, transcript]:
         if file:
@@ -31,7 +28,6 @@ async def chat_endpoint(payload: dict):
     message = payload["message"]
     language = payload.get("language", "en")
 
-    # Optional: load a future parsed profile
     user_profile = None
 
     result = planner.plan(

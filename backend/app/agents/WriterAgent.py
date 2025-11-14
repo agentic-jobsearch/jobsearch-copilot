@@ -1,14 +1,18 @@
 import os
 import json
 from typing import Dict, List, Any, Optional
+from pathlib import Path
 from dotenv import load_dotenv
 from google.cloud import bigquery
 from google.oauth2 import service_account
 from openai import OpenAI
 from dataclasses import dataclass
 from datetime import datetime
+from app.core.env import require_env
 
-load_dotenv()
+OPENAI_KEY = require_env("OPENAI_API_KEY")
+self.client = OpenAI(api_key=OPENAI_KEY)
+
 
 @dataclass
 class UserProfile:

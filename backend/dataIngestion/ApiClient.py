@@ -1,6 +1,7 @@
 import os
 import requests
 import pandas as pd
+from pathlib import Path
 from dotenv import load_dotenv
 from google.cloud import bigquery
 from google.oauth2 import service_account
@@ -10,9 +11,11 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from backend.dataIngestion.BigqueryUpsert import upsert_dataframe_to_bigquery
+from app.core.env import require_env
 
-# Load environment variables
-load_dotenv()
+OPENAI_KEY = require_env("OPENAI_API_KEY")
+self.client = OpenAI(api_key=OPENAI_KEY)
+
 
 # Set up credentials
 credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
