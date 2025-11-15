@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import ChatWindow from "./components/ChatWindow.jsx";
 import JobList from "./components/JobList.jsx";
 import ConsentModal from "./components/ConsentModal.jsx";
+import ActivityGraph from "./components/ActivityGraph.jsx";
 import "./App.css";
 
 import {
@@ -520,20 +521,50 @@ const confirmApply = () => {
         )}
         </header>
 
-        {activePage === "jobboard" && (
-          <section className="feature-section">
-            <h2>Here is what you got!</h2>
-            <div className="feature-grid">
-              <FeatureCard title="Guided Job Search" percent="100%" color="#ff8b3d" />
-              <FeatureCard title="Aligned Job Links" percent="92%" color="#ffe45e" />
-              <FeatureCard title="Save & Track Jobs" percent="76%" color="#48c6ef" />
-              <FeatureCard title="Chat with AI" percent="100%" color="#ff6ad5" />
-              <FeatureCard title="Tailored CVs" percent="88%" color="#7cfc9e" />
-              <FeatureCard title="Cover Letters & PDFs" percent="81%" color="#a694ff" />
-            </div>
-          </section>
-        )}
 
+        {/* JOB BOARD PAGE */}
+        {activePage === "jobboard" && (
+          <>
+            <section className="feature-section">
+              <h2>Here is what you got!</h2>
+              <div className="feature-grid">
+                <FeatureCard
+                  title="Matched Jobs This Month"
+                  percent={65}
+                  color="#ff8b3d"
+                />
+                <FeatureCard
+                  title="Applications Sent"
+                  percent={18}
+                  color="#ffe45e"
+                />
+                <FeatureCard
+                  title="Interview Calls Received"
+                  percent={15}
+                  color="#48c6ef"
+                />
+                <FeatureCard
+                  title="Chat With AI (Activity)"
+                  percent={100}
+                  color="#ff6ad5"
+                />
+                <FeatureCard
+                  title="Application Documents Generated"
+                  percent={10}
+                  color="#7cfc9e"
+                />
+                <FeatureCard
+                  title="Completed / Offer Status"
+                  percent={12}
+                  color="#a694ff"
+                />
+              </div>
+            </section>
+
+            {/* Activity line graph */}
+            <ActivityGraph />
+          </>
+        )}
 
        {activePage === "chats" && (
          <section className="content-row">
@@ -580,14 +611,15 @@ const confirmApply = () => {
   );
 }
 
-function FeatureCard({ title, percent, color }) {
+function FeatureCard({ title, percent, color, border }) {
+    const value = Math.min(Number(percent) || 0, 100);
   return (
-    <div className="feature-card">
+    <div className="feature-card"style={{ borderColor: border }}>
       <div className="feature-title">{title}</div>
       <div className="feature-footer">
         <span className="feature-percent">{percent}</span>
         <div className="feature-bar">
-          <span className="feature-bar-fill" style={{ backgroundColor: color }} />
+          <span className="feature-bar-fill" style={{ backgroundColor: color, width: `${value}%` }} />
         </div>
       </div>
     </div>
