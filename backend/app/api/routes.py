@@ -75,13 +75,12 @@ async def apply(payload: dict):
     if not profile:
         raise HTTPException(status_code=400, detail="Upload a resume before applying.")
 
-    try:
-        documents = generate_documents(profile, job)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to generate documents: {exc}") from exc
+    documents = generate_documents(profile, job)
 
     return {
         "ok": True,
         "resume": documents["resume_text"],
-        "cover_letter": documents["cover_letter"]
+        "cover_letter": documents["cover_letter"],
+        "resume_pdf": documents["resume_pdf"],
+        "cover_letter_pdf": documents["cover_letter_pdf"]
     }

@@ -7,6 +7,7 @@ export default function JobList({
   onLoadMore,
   onRemoveFile = () => {},
   onRemoveJob = () => {},
+  jobDocuments = {},
   onApplyClick
 }) {
   const skills = Array.isArray(profile?.skills) ? profile.skills.slice(0, 8) : [];
@@ -88,6 +89,7 @@ export default function JobList({
         {jobs.slice(0, visibleJobs).map((job) => {
           const matchScore = job.matchScore ?? job.match_score ?? 0;
           const jobId = job._clientId || job.id || job.job_id;
+          const docs = jobDocuments[jobId];
 
           return (
             <div key={jobId} className="job-item">
@@ -103,6 +105,28 @@ export default function JobList({
               {job.matched_skills.slice(0, 8).map((skill) => (
                 <span key={`${jobId}-${skill}`}>{skill}</span>
               ))}
+            </div>
+          )}
+          {docs && (
+            <div className="job-doc-chips">
+              {docs.resumePdf && (
+                <button
+                  type="button"
+                  className="job-doc-chip"
+                  onClick={() => downloadBase64Pdf(docs.resumePdf, `${job.company || "resume"}.pdf`)}
+                >
+                  CV
+                </button>
+              )}
+              {docs.coverPdf && (
+                <button
+                  type="button"
+                  className="job-doc-chip"
+                  onClick={() => downloadBase64Pdf(docs.coverPdf, `${job.company || "cover_letter"}.pdf`)}
+                >
+                  Cover Letter
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -145,12 +169,85 @@ export default function JobList({
 
       {generatedDocs && (
         <div className="docs-preview">
-          <h4>Generated CV (preview)</h4>
-          <pre>{generatedDocs.cv}</pre>
-          <h4>Cover Letter (preview)</h4>
-          <pre>{generatedDocs.coverLetter}</pre>
+          <DocPreview
+            title="Generated CV"
+            content={generatedDocs.cv}
+            filename="tailored_resume.pdf"
+            pdfBase64={generatedDocs.cvPdf}
+          />
+          <DocPreview
+            title="Cover Letter"
+            content={generatedDocs.coverLetter}
+            filename="cover_letter.pdf"
+            pdfBase64={generatedDocs.coverPdf}
+          />
         </div>
       )}
+    </div>
+  );
+}
+
+function downloadBase64Pdf(base64Data, filename) {
+  if (!base64Data) return;
+  const byteCharacters = atob(base64Data);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const blob = new Blob([new Uint8Array(byteNumbers)], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function DocPreview({ title, content, filename, pdfBase64 }) {
+  const copyToClipboard = () => {
+    if (!content) return;
+    navigator?.clipboard?.writeText(content);
+  };
+
+  const downloadFile = () => {
+    if (!content && !pdfBase64) return;
+    let blob;
+    if (pdfBase64) {
+      const byteCharacters = atob(pdfBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      blob = new Blob([new Uint8Array(byteNumbers)], { type: "application/pdf" });
+    } else {
+      blob = new Blob([content], { type: "text/plain" });
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="doc-preview-item">
+      <div className="doc-preview-header">
+        <h4>{title} (preview)</h4>
+        <div className="doc-preview-actions">
+          <button type="button" onClick={copyToClipboard}>
+            Copy
+          </button>
+          <button type="button" onClick={downloadFile}>
+            Download
+          </button>
+        </div>
+      </div>
+      <pre>{content || "No document yet."}</pre>
     </div>
   );
 }

@@ -34,6 +34,8 @@ function App() {
   const [visibleJobs, setVisibleJobs] = useState(5);
   const [removedJobIds, setRemovedJobIds] = useState(() => new Set());
   const [isUploading, setIsUploading] = useState(false);
+  const [jobDocuments, setJobDocuments] = useState({});
+  const [isPreparingApplication, setIsPreparingApplication] = useState(false);
 
   const cvInputRef = useRef(null);
   const transcriptInputRef = useRef(null);
@@ -309,17 +311,44 @@ function App() {
     setShowConsent(true);
   };
 
+const stripMarkdownFence = (text) => {
+  if (!text) return "";
+  let cleaned = text.trim();
+  if (cleaned.startsWith("```")) {
+    const firstNewLine = cleaned.indexOf("\n");
+    if (firstNewLine !== -1) {
+      cleaned = cleaned.slice(firstNewLine + 1);
+    }
+    if (cleaned.endsWith("```")) {
+      cleaned = cleaned.slice(0, -3);
+    }
+  }
+  return cleaned.trim();
+};
+
 const confirmApply = async () => {
   if (!selectedJob) return;
   setShowConsent(false);
+  setIsPreparingApplication(true);
 
   try {
     const response = await submitApplication(selectedJob);
 
     setGeneratedDocs({
-      cv: response.resume || "Resume generated.",
-      coverLetter: response.cover_letter || "Cover letter generated."
+      cv: stripMarkdownFence(response.resume) || "Resume generated.",
+      coverLetter: stripMarkdownFence(response.cover_letter) || "Cover letter generated.",
+      cvPdf: response.resume_pdf || null,
+      coverPdf: response.cover_letter_pdf || null
     });
+
+    const jobKey = selectedJob._clientId || buildClientId(selectedJob);
+    setJobDocuments((prev) => ({
+      ...prev,
+      [jobKey]: {
+        resumePdf: response.resume_pdf || null,
+        coverPdf: response.cover_letter_pdf || null
+      }
+    }));
 
     pushMessage({
       role: "assistant",
@@ -330,6 +359,7 @@ const confirmApply = async () => {
     pushMessage({ role: "assistant", content: err.message || "Application workflow failed." });
   } finally {
     setSelectedJob(null);
+    setIsPreparingApplication(false);
   }
 };
 
@@ -474,6 +504,7 @@ const confirmApply = async () => {
                 visibleJobs={visibleJobs}
                 onLoadMore={() => setVisibleJobs((prev) => prev + 5)}
                 onRemoveFile={removeUploadedFile}
+                jobDocuments={jobDocuments}
                 onRemoveJob={handleRemoveJob}
                 onApplyClick={handleApplyClick}
               />
@@ -490,6 +521,7 @@ const confirmApply = async () => {
           onCancel={() => setShowConsent(false)}
         />
       )}
+      {isPreparingApplication && <PreparingModal />}
     </div>
   );
 }
@@ -509,3 +541,18 @@ function FeatureCard({ title, percent, color }) {
 }
 
 export default App;
+
+function PreparingModal() {
+  return (
+    <div className="modal-backdrop preparing">
+      <div className="preparing-modal">
+        <div className="preparing-spinner">
+          <span />
+          <span />
+          <span />
+        </div>
+        <p>Preparing your application…</p>
+      </div>
+    </div>
+  );
+}

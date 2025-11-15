@@ -1,7 +1,14 @@
 import json
+import base64
+from io import BytesIO
+from textwrap import wrap
 from typing import Dict, Any
 
 from openai import OpenAI
+from reportlab.lib.pagesizes import LETTER
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
+
 from app.core.env import require_env
 
 _client = OpenAI(api_key=require_env("OPENAI_API_KEY"))
@@ -82,10 +89,64 @@ Job Info:
 {formatted_job}
 """
 
-    resume_text = _chat_completion(resume_prompt, temperature=0.3)
-    cover_letter = _chat_completion(cover_prompt, temperature=0.25)
+    try:
+        resume_text = _chat_completion(resume_prompt, temperature=0.3)
+    except Exception as exc:
+        resume_text = f"Unable to generate resume: {exc}"
+
+    try:
+        cover_letter = _chat_completion(cover_prompt, temperature=0.25)
+    except Exception as exc:
+        cover_letter = f"Unable to generate cover letter: {exc}"
+
+    try:
+        resume_pdf = _render_pdf(resume_text, "Tailored Resume")
+    except Exception as exc:
+        resume_pdf = _render_pdf(str(resume_text)[:2000], "Tailored Resume (fallback)")
+        resume_text = f"{resume_text}\n\n(Note: PDF fallback due to error: {exc})"
+
+    try:
+        cover_pdf = _render_pdf(cover_letter, "Cover Letter")
+    except Exception as exc:
+        cover_pdf = _render_pdf(str(cover_letter)[:2000], "Cover Letter (fallback)")
+        cover_letter = f"{cover_letter}\n\n(Note: PDF fallback due to error: {exc})"
 
     return {
         "resume_text": resume_text,
-        "cover_letter": cover_letter
+        "cover_letter": cover_letter,
+        "resume_pdf": base64.b64encode(resume_pdf).decode("utf-8"),
+        "cover_letter_pdf": base64.b64encode(cover_pdf).decode("utf-8"),
     }
+
+
+def _render_pdf(text: str, title: str) -> bytes:
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=LETTER)
+    width, height = LETTER
+    margin = 0.8 * inch
+    y = height - margin
+
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(margin, y, title)
+    y -= 0.4 * inch
+
+    c.setFont("Helvetica", 11)
+    max_line_width = width - 2 * margin
+    line_height = 14
+
+    for raw_line in text.splitlines():
+        if not raw_line.strip():
+            y -= line_height
+            continue
+        wrapped = wrap(raw_line, width=90) or [""]
+        for line in wrapped:
+            if y <= margin:
+                c.showPage()
+                y = height - margin
+                c.setFont("Helvetica", 11)
+            c.drawString(margin, y, line)
+            y -= line_height
+
+    c.save()
+    buffer.seek(0)
+    return buffer.read()
