@@ -32,6 +32,7 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [visibleJobs, setVisibleJobs] = useState(5);
+  const [removedJobIds, setRemovedJobIds] = useState(() => new Set());
   const [isUploading, setIsUploading] = useState(false);
 
   const cvInputRef = useRef(null);
@@ -264,7 +265,12 @@ function App() {
     }
 
     addAssistantMessageAnimated(replySections.join("\n\n"));
-    setJobs(jobMatches);
+    const filteredJobs = jobMatches.filter((job) => {
+      const jobId = job.id || job.job_id;
+      return !removedJobIds.has(jobId);
+    });
+
+    setJobs(filteredJobs);
     setVisibleJobs(5);
 
   } catch (err) {
@@ -445,6 +451,7 @@ const confirmApply = async () => {
                 visibleJobs={visibleJobs}
                 onLoadMore={() => setVisibleJobs((prev) => prev + 5)}
                 onRemoveFile={removeUploadedFile}
+                onRemoveJob={handleRemoveJob}
                 onApplyClick={handleApplyClick}
               />
             </div>
@@ -479,3 +486,12 @@ function FeatureCard({ title, percent, color }) {
 }
 
 export default App;
+  const handleRemoveJob = (job) => {
+    const jobId = job.id || job.job_id;
+    setRemovedJobIds((prev) => {
+      const next = new Set(prev);
+      next.add(jobId);
+      return next;
+    });
+    setJobs((prev) => prev.filter((j) => (j.id || j.job_id) !== jobId));
+  };

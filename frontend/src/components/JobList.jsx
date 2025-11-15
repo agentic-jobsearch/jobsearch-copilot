@@ -6,6 +6,7 @@ export default function JobList({
   visibleJobs = 5,
   onLoadMore,
   onRemoveFile = () => {},
+  onRemoveJob = () => {},
   onApplyClick
 }) {
   const skills = Array.isArray(profile?.skills) ? profile.skills.slice(0, 8) : [];
@@ -105,13 +106,22 @@ export default function JobList({
             </div>
           )}
         </div>
-                <button
-                  className="job-apply-btn"
-                  onClick={() => onApplyClick(job)}
-                  aria-label={`Apply to ${job.title} at ${job.company}`}
-                >
-                  Apply
-                </button>
+                <div className="job-actions">
+                  <button
+                    className="job-remove-btn"
+                    onClick={() => onRemoveJob(job)}
+                    aria-label={`Remove ${job.title}`}
+                  >
+                    Remove
+                  </button>
+                  <button
+                    className="job-apply-btn"
+                    onClick={() => onApplyClick(job)}
+                    aria-label={`Apply to ${job.title} at ${job.company}`}
+                  >
+                    Apply
+                  </button>
+                </div>
               </div>
               {job.url && (
                 <a
