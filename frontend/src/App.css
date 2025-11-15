@@ -643,6 +643,23 @@ body {
   font-size: 0.7rem;
 }
 
+.job-doc-chips {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.job-doc-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.6);
+  background: rgba(96, 165, 250, 0.15);
+  color: #bfdbfe;
+  font-size: 0.7rem;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
 .job-apply-btn {
   border-radius: 999px;
   border: none;
@@ -673,9 +690,43 @@ body {
 .docs-preview {
   margin-top: 10px;
   font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.docs-preview pre {
+.doc-preview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doc-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.doc-preview-header h4 {
+  margin: 0;
+}
+
+.doc-preview-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.doc-preview-actions button {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: transparent;
+  color: #e5e7eb;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.doc-preview-item pre {
   background: rgba(15, 23, 42, 1);
   border-radius: 8px;
   padding: 6px;
@@ -752,6 +803,60 @@ body {
 .modal-btn.primary {
   background: linear-gradient(135deg, #48c6ef, #6f86ff);
   color: white;
+}
+
+.modal-backdrop.preparing {
+  background: rgba(15, 23, 42, 0.85);
+}
+
+.preparing-modal {
+  background: rgba(15, 23, 42, 1);
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-width: 260px;
+}
+
+.preparing-modal p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #e5e7eb;
+}
+
+.preparing-spinner {
+  display: flex;
+  gap: 8px;
+}
+
+.preparing-spinner span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #93c5fd;
+  animation: bounce 1.2s infinite ease-in-out;
+}
+
+.preparing-spinner span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.preparing-spinner span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.7;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* RESPONSIVE */
