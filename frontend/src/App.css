@@ -268,20 +268,37 @@ body {
 }
 
 
+
 .feature-card {
+  background: rgba(15, 23, 42, 0.9);
+  border: 2px solid transparent;
   border-radius: 18px;
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  padding: 12px;
+  padding: 16px 20px;
+  color: #fff;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 90px;
+  gap: 10px;
+  transition: 0.25s ease;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.05);
+}
+
+/* Glowing border */
+/* .feature-card {
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.05);
+} */
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.12);
 }
 
 .feature-title {
   font-size: 0.85rem;
   margin-bottom: 8px;
+}
+.feature-value {
+  font-size: 2rem;
+  font-weight: 600;
 }
 
 .feature-footer {
