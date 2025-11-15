@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.agents.UploadResume import ResumeParser
 from app.agents.PlannerAgent import PlannerAgent
 from app.state.user_profiles import set_profile, get_profile
+from app.services.document_generator import generate_documents
 
 api_router = APIRouter()
 
@@ -62,5 +63,25 @@ async def chat_endpoint(payload: dict):
 
 @api_router.post("/api/apply")
 async def apply(payload: dict):
-    print("Applying to:", payload)
-    return {"ok": True, "submitted": True}
+    user_id = payload.get("userId")
+    job = payload.get("job")
+
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Missing userId")
+    if not job:
+        raise HTTPException(status_code=400, detail="Missing job details")
+
+    profile = get_profile(user_id)
+    if not profile:
+        raise HTTPException(status_code=400, detail="Upload a resume before applying.")
+
+    try:
+        documents = generate_documents(profile, job)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to generate documents: {exc}") from exc
+
+    return {
+        "ok": True,
+        "resume": documents["resume_text"],
+        "cover_letter": documents["cover_letter"]
+    }

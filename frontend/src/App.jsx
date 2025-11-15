@@ -135,6 +135,18 @@ function App() {
     typingTimers.current.push(interval);
   };
 
+  const buildClientId = (job, idx = 0) => {
+    return (
+      job._clientId ||
+      job.job_id ||
+      job.id ||
+      job.jobId ||
+      job.job_url ||
+      job.url ||
+      `${job.company || "company"}-${job.job_title || job.title || "role"}-${job.location || "anywhere"}-${idx}`
+    );
+  };
+
   const handleUpload = async () => {
     const cvFile = cvInputRef.current.files[0];
     const transcriptFile = transcriptInputRef.current.files[0];
@@ -163,6 +175,16 @@ function App() {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleRemoveJob = (job) => {
+    const jobId = job._clientId || buildClientId(job);
+    setRemovedJobIds((prev) => {
+      const next = new Set(prev);
+      next.add(jobId);
+      return next;
+    });
+    setJobs((prev) => prev.filter((j) => (j._clientId || buildClientId(j)) !== jobId));
   };
 
 
@@ -207,7 +229,11 @@ function App() {
       (t) => t.task_id === "goal_understanding" || t.task_type === "analysis"
     );
     const jobTask = result.tasks?.find((t) => t.task_type === "job_search");
-    const jobMatches = jobTask?.output?.top_matches || [];
+    const rawJobMatches = jobTask?.output?.top_matches || [];
+    const jobMatches = rawJobMatches.map((job, idx) => ({
+      ...job,
+      _clientId: buildClientId(job, idx)
+    }));
 
     const replySections = [];
 
@@ -265,10 +291,7 @@ function App() {
     }
 
     addAssistantMessageAnimated(replySections.join("\n\n"));
-    const filteredJobs = jobMatches.filter((job) => {
-      const jobId = job.id || job.job_id;
-      return !removedJobIds.has(jobId);
-    });
+    const filteredJobs = jobMatches.filter((job) => !removedJobIds.has(job._clientId));
 
     setJobs(filteredJobs);
     setVisibleJobs(5);
@@ -291,20 +314,20 @@ const confirmApply = async () => {
   setShowConsent(false);
 
   try {
-    await submitApplication(selectedJob);
+    const response = await submitApplication(selectedJob);
 
     setGeneratedDocs({
-      cv: "Resume will be generated in future iterations.",
-      coverLetter: "Cover letter will be generated in future iterations."
+      cv: response.resume || "Resume generated.",
+      coverLetter: response.cover_letter || "Cover letter generated."
     });
 
     pushMessage({
       role: "assistant",
-      content: `Application submitted for "${selectedJob.title}" at ${selectedJob.company}.`
+      content: `Tailored resume and cover letter prepared for "${selectedJob.title}" at ${selectedJob.company}.`
     });
   } catch (err) {
     console.error(err);
-    pushMessage({ role: "assistant", content: "Application workflow failed." });
+    pushMessage({ role: "assistant", content: err.message || "Application workflow failed." });
   } finally {
     setSelectedJob(null);
   }
@@ -486,12 +509,3 @@ function FeatureCard({ title, percent, color }) {
 }
 
 export default App;
-  const handleRemoveJob = (job) => {
-    const jobId = job.id || job.job_id;
-    setRemovedJobIds((prev) => {
-      const next = new Set(prev);
-      next.add(jobId);
-      return next;
-    });
-    setJobs((prev) => prev.filter((j) => (j.id || j.job_id) !== jobId));
-  };
