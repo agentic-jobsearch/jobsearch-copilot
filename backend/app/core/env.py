@@ -41,7 +41,6 @@ def require_env(name: str):
 def validate_environment():
     required = [
         "OPENAI_API_KEY",
-        "GOOGLE_PROJECT_ID",
         "GOOGLE_APPLICATION_CREDENTIALS",
     ]
     for key in required:
