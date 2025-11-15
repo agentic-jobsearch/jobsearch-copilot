@@ -69,6 +69,61 @@ class PlannerAgent:
         print("PlannerAgent initialized")
         self.active_workflows: Dict[str, WorkflowPlan] = {}
 
+    def _normalize_terms(self, values: Optional[List[str]]) -> List[str]:
+        terms: List[str] = []
+        for value in values or []:
+            if not isinstance(value, str):
+                continue
+            token = value.strip().lower()
+            if token:
+                terms.append(token)
+        return terms
+
+    def _score_job(self, profile: Optional[Dict[str, Any]], job: Dict[str, Any]) -> Dict[str, Any]:
+        if not profile:
+            return {"score": 0.0, "matched_skills": []}
+
+        profile_skills = set(self._normalize_terms(profile.get("skills")))
+        if isinstance(profile.get("custom_skills"), list):
+            profile_skills.update(self._normalize_terms(profile["custom_skills"]))
+
+        job_skill_terms: List[str] = []
+        job_skills = job.get("skills")
+        if isinstance(job_skills, list):
+            job_skill_terms = self._normalize_terms(job_skills)
+        elif isinstance(job_skills, str):
+            job_skill_terms = self._normalize_terms(re.split(r"[;,/\n]", job_skills))
+
+        matched_skills = []
+        job_desc = (job.get("description") or "").lower()
+        for skill in profile_skills:
+            if skill in job_skill_terms or (skill and skill in job_desc):
+                matched_skills.append(skill)
+
+        skill_score = 0.0
+        if profile_skills:
+            skill_score = (len(matched_skills) / len(profile_skills)) * 70.0
+
+        # Location bonus
+        location_score = 0.0
+        profile_location = (profile.get("location") or "").lower()
+        job_location = (job.get("location") or "").lower()
+        if profile_location and job_location and profile_location.split(",")[0] in job_location:
+            location_score = 10.0
+
+        # Title alignment bonus
+        title_score = 0.0
+        profile_title = (profile.get("title") or "").lower()
+        job_title = (job.get("job_title") or job.get("title") or "").lower()
+        if profile_title and job_title and any(token in job_title for token in profile_title.split()):
+            title_score = 20.0
+
+        final_score = min(100.0, round(skill_score + location_score + title_score, 1))
+        return {
+            "score": final_score,
+            "matched_skills": matched_skills,
+        }
+
     def _build_profile_insights(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(profile, dict):
             return {}
@@ -226,13 +281,16 @@ class PlannerAgent:
 
         if should_search:
             search_terms = self._build_search_terms(message, profile)
-            jobs = search_jobs(search_terms, limit=5)
+            jobs = search_jobs(search_terms, limit=25)
 
             for job in jobs:
                 comp = get_company_info(job["company_urn"])
                 if comp:
                     job["company"] = comp["company"]
                     job["company_url"] = comp["company_url"]
+                score_details = self._score_job(profile, job)
+                job["match_score"] = score_details.get("score", 0.0)
+                job["matched_skills"] = score_details.get("matched_skills", [])
 
             parsed["bigquery_jobs"] = jobs
 

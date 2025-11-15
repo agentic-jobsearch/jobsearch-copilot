@@ -31,11 +31,13 @@ function App() {
   const [activePage, setActivePage] = useState("chats");
   const [profile, setProfile] = useState(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [visibleJobs, setVisibleJobs] = useState(5);
   const [isUploading, setIsUploading] = useState(false);
 
   const cvInputRef = useRef(null);
   const transcriptInputRef = useRef(null);
   const typingTimers = useRef([]);
+  const uploadedFilesRef = useRef([]);
 
   useEffect(() => {
     return () => {
@@ -43,6 +45,57 @@ function App() {
       typingTimers.current = [];
     };
   }, []);
+
+  useEffect(() => {
+    uploadedFilesRef.current = uploadedFiles;
+  }, [uploadedFiles]);
+
+  useEffect(() => {
+    return () => {
+      uploadedFilesRef.current.forEach((file) => URL.revokeObjectURL(file.url));
+    };
+  }, []);
+
+  const createFileEntry = (file) => ({
+    name: file.name,
+    url: URL.createObjectURL(file),
+    size: file.size
+  });
+
+  const addUploadedEntries = (files) => {
+    if (!files.length) return;
+    setUploadedFiles((prev) => {
+      const updated = [...prev];
+      const indexMap = new Map(prev.map((file, idx) => [file.name, { idx, url: file.url }]));
+
+      files.forEach((file) => {
+        const entry = createFileEntry(file);
+        if (indexMap.has(entry.name)) {
+          const { idx, url } = indexMap.get(entry.name);
+          URL.revokeObjectURL(url);
+          updated[idx] = entry;
+        } else {
+          updated.push(entry);
+        }
+      });
+
+      return updated;
+    });
+  };
+
+  const removeUploadedFile = (name) => {
+    setUploadedFiles((prev) => {
+      const remaining = [];
+      prev.forEach((file) => {
+        if (file.name === name) {
+          URL.revokeObjectURL(file.url);
+        } else {
+          remaining.push(file);
+        }
+      });
+      return remaining;
+    });
+  };
 
   const pushMessage = (message) => {
     const msg = { id: generateMessageId(), ...message };
@@ -94,13 +147,10 @@ function App() {
       setIsUploading(true);
       const response = await uploadDocs(cvFile, transcriptFile);
       setProfile(response.profile || null);
-      if (response.files?.length) {
-        setUploadedFiles((prev) => {
-          const existing = new Set(prev);
-          response.files.forEach((file) => existing.add(file));
-          return Array.from(existing);
-        });
-      }
+      const newlySelected = [];
+      if (cvFile) newlySelected.push(cvFile);
+      if (transcriptFile) newlySelected.push(transcriptFile);
+      addUploadedEntries(newlySelected);
       pushMessage({
         role: "assistant",
         content:
@@ -193,14 +243,18 @@ function App() {
     const jobSearchRan = jobTask?.output?.searched;
 
     if (jobMatches.length) {
-      const jobLines = jobMatches.slice(0, 3).map((job) => {
+      const sampleCount = Math.min(jobMatches.length, 5);
+      const jobLines = jobMatches.slice(0, sampleCount).map((job) => {
         const company = job.company || job.company_name || job.company_urn || "Company";
         const location = job.location || "Location not provided";
         return `• ${job.job_title} @ ${company} (${location})`;
       });
       replySections.push(
-        `Top matches (${jobMatches.length} found):\n${jobLines.join("\n")}`
+        `Top matches (${jobMatches.length} found, showing ${sampleCount}):\n${jobLines.join("\n")}`
       );
+      if (jobMatches.length > sampleCount) {
+        replySections.push(`Open the Matched Jobs panel to view ${jobMatches.length - sampleCount} more.`);
+      }
     } else if (jobSearchRan) {
       replySections.push("No strong matches yet. Try refining the goal or location.");
     }
@@ -211,6 +265,7 @@ function App() {
 
     addAssistantMessageAnimated(replySections.join("\n\n"));
     setJobs(jobMatches);
+    setVisibleJobs(5);
 
   } catch (err) {
     console.error(err);
@@ -387,6 +442,9 @@ const confirmApply = async () => {
                 generatedDocs={generatedDocs}
                 uploadedFiles={uploadedFiles}
                 profile={profile}
+                visibleJobs={visibleJobs}
+                onLoadMore={() => setVisibleJobs((prev) => prev + 5)}
+                onRemoveFile={removeUploadedFile}
                 onApplyClick={handleApplyClick}
               />
             </div>

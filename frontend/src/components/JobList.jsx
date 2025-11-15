@@ -3,6 +3,9 @@ export default function JobList({
   generatedDocs,
   uploadedFiles = [],
   profile,
+  visibleJobs = 5,
+  onLoadMore,
+  onRemoveFile = () => {},
   onApplyClick
 }) {
   const skills = Array.isArray(profile?.skills) ? profile.skills.slice(0, 8) : [];
@@ -23,7 +26,24 @@ export default function JobList({
           </div>
           <ul>
             {uploadedFiles.map((file) => (
-              <li key={file}>{file}</li>
+              <li key={file.name} className="uploaded-file-item">
+                <a
+                  href={file.url}
+                  download={file.name}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {file.name}
+                </a>
+                <button
+                  type="button"
+                  className="uploaded-file-remove"
+                  onClick={() => onRemoveFile(file.name)}
+                  aria-label={`Remove ${file.name}`}
+                >
+                  🗑
+                </button>
+              </li>
             ))}
           </ul>
         </div>
@@ -64,20 +84,27 @@ export default function JobList({
           </p>
         )}
 
-        {jobs.map((job) => {
+        {jobs.slice(0, visibleJobs).map((job) => {
           const matchScore = job.matchScore ?? job.match_score ?? 0;
           const jobId = job.id || job.job_id;
 
           return (
             <div key={jobId} className="job-item">
-              <div className="job-main">
-                <div>
-                  <div className="job-title">{job.title}</div>
-                  <div className="job-company">{job.company}</div>
-                  <div className="job-meta">
-                    {job.location} • Match score: {matchScore}
-                  </div>
-                </div>
+      <div className="job-main">
+        <div>
+          <div className="job-title">{job.title}</div>
+          <div className="job-company">{job.company}</div>
+          <div className="job-meta">
+            {job.location} • Match score: <strong>{matchScore}</strong>
+          </div>
+          {job.matched_skills?.length > 0 && (
+            <div className="job-skills">
+              {job.matched_skills.slice(0, 8).map((skill) => (
+                <span key={`${jobId}-${skill}`}>{skill}</span>
+              ))}
+            </div>
+          )}
+        </div>
                 <button
                   className="job-apply-btn"
                   onClick={() => onApplyClick(job)}
@@ -100,6 +127,11 @@ export default function JobList({
           );
         })}
       </div>
+      {jobs.length > visibleJobs && (
+        <button className="jobs-load-more" onClick={onLoadMore}>
+          Show more ({jobs.length - visibleJobs} remaining)
+        </button>
+      )}
 
       {generatedDocs && (
         <div className="docs-preview">
