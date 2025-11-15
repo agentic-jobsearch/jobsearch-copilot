@@ -35,6 +35,8 @@ function App() {
   const [removedJobIds, setRemovedJobIds] = useState(() => new Set());
   const [isUploading, setIsUploading] = useState(false);
   const [jobDocuments, setJobDocuments] = useState({});
+  const [preparedJobs, setPreparedJobs] = useState(new Set());
+  const [appliedJobCards, setAppliedJobCards] = useState([]);
   const [isPreparingApplication, setIsPreparingApplication] = useState(false);
 
   const cvInputRef = useRef(null);
@@ -162,10 +164,18 @@ function App() {
       setIsUploading(true);
       const response = await uploadDocs(cvFile, transcriptFile);
       setProfile(response.profile || null);
-      const newlySelected = [];
-      if (cvFile) newlySelected.push(cvFile);
-      if (transcriptFile) newlySelected.push(transcriptFile);
-      addUploadedEntries(newlySelected);
+      if (response.files) {
+        const entries = Object.entries(response.files).map(([name, path]) => ({
+          name,
+          url: path
+        }));
+        setUploadedFiles(entries);
+      } else {
+        const newlySelected = [];
+        if (cvFile) newlySelected.push(cvFile);
+        if (transcriptFile) newlySelected.push(transcriptFile);
+        addUploadedEntries(newlySelected);
+      }
       pushMessage({
         role: "assistant",
         content:
@@ -187,6 +197,18 @@ function App() {
       return next;
     });
     setJobs((prev) => prev.filter((j) => (j._clientId || buildClientId(j)) !== jobId));
+    setPreparedJobs((prev) => {
+      if (!prev.has(jobId)) return prev;
+      const next = new Set(prev);
+      next.delete(jobId);
+      return next;
+    });
+    setJobDocuments((prev) => {
+      if (!prev[jobId]) return prev;
+      const next = { ...prev };
+      delete next[jobId];
+      return next;
+    });
   };
 
 
@@ -306,7 +328,52 @@ function App() {
   }
 };
 
+  const handlePrepareJob = async (job) => {
+    const jobKey = job._clientId || buildClientId(job);
+    setIsPreparingApplication(true);
+    try {
+      const response = await submitApplication(job);
+
+      setGeneratedDocs({
+        cv: stripMarkdownFence(response.resume) || "",
+        coverLetter: stripMarkdownFence(response.cover_letter) || "",
+        cvPdf: response.resume_pdf || null,
+        coverPdf: response.cover_letter_pdf || null
+      });
+
+      setJobDocuments((prev) => ({
+        ...prev,
+        [jobKey]: {
+          resumePdf: response.resume_pdf || null,
+          coverPdf: response.cover_letter_pdf || null,
+          textResume: response.resume || "",
+          textCover: response.cover_letter || ""
+        }
+      }));
+      setPreparedJobs((prev) => {
+        const next = new Set(prev);
+        next.add(jobKey);
+        return next;
+      });
+
+      pushMessage({
+        role: "assistant",
+        content: `Tailored documents prepared for "${job.title}" at ${job.company}.`
+      });
+    } catch (err) {
+      console.error(err);
+      pushMessage({ role: "assistant", content: err.message || "Document preparation failed." });
+    } finally {
+      setIsPreparingApplication(false);
+    }
+  };
+
   const handleApplyClick = (job) => {
+    const jobKey = job._clientId || buildClientId(job);
+    if (!preparedJobs.has(jobKey)) {
+      alert("Please prepare documents before applying.");
+      return;
+    }
     setSelectedJob(job);
     setShowConsent(true);
   };
@@ -326,41 +393,25 @@ const stripMarkdownFence = (text) => {
   return cleaned.trim();
 };
 
-const confirmApply = async () => {
+const confirmApply = () => {
   if (!selectedJob) return;
   setShowConsent(false);
-  setIsPreparingApplication(true);
-
-  try {
-    const response = await submitApplication(selectedJob);
-
-    setGeneratedDocs({
-      cv: stripMarkdownFence(response.resume) || "Resume generated.",
-      coverLetter: stripMarkdownFence(response.cover_letter) || "Cover letter generated.",
-      cvPdf: response.resume_pdf || null,
-      coverPdf: response.cover_letter_pdf || null
-    });
-
-    const jobKey = selectedJob._clientId || buildClientId(selectedJob);
-    setJobDocuments((prev) => ({
-      ...prev,
-      [jobKey]: {
-        resumePdf: response.resume_pdf || null,
-        coverPdf: response.cover_letter_pdf || null
-      }
-    }));
-
-    pushMessage({
-      role: "assistant",
-      content: `Tailored resume and cover letter prepared for "${selectedJob.title}" at ${selectedJob.company}.`
-    });
-  } catch (err) {
-    console.error(err);
-    pushMessage({ role: "assistant", content: err.message || "Application workflow failed." });
-  } finally {
-    setSelectedJob(null);
-    setIsPreparingApplication(false);
-  }
+  pushMessage({
+    role: "assistant",
+    content: `Application submitted for "${selectedJob.title}" at ${selectedJob.company}.`
+  });
+  const jobKey = selectedJob._clientId || buildClientId(selectedJob);
+  setAppliedJobCards((prev) => [
+    ...prev,
+    {
+      ...selectedJob,
+      _clientId: jobKey,
+      prepared: preparedJobs.has(jobKey),
+      documents: jobDocuments[jobKey] || {}
+    }
+  ]);
+  setJobs((prev) => prev.filter((j) => (j._clientId || buildClientId(j)) !== jobKey));
+  setSelectedJob(null);
 };
 
   return (
@@ -484,33 +535,36 @@ const confirmApply = async () => {
         )}
 
 
-        {activePage === "chats" && (
-          <section className="content-row">
-            <div className="content-left">
-              <ChatWindow
-                messages={messages}
+       {activePage === "chats" && (
+         <section className="content-row">
+           <div className="content-left">
+             <ChatWindow
+               messages={messages}
                 onSendMessage={sendMessage}
                 disabled={isSending}
                 language={language}
                 isProcessing={isSending}
               />
             </div>
-            <div className="content-right">
-              <JobList
-                jobs={jobs}
-                generatedDocs={generatedDocs}
-                uploadedFiles={uploadedFiles}
-                profile={profile}
-                visibleJobs={visibleJobs}
-                onLoadMore={() => setVisibleJobs((prev) => prev + 5)}
-                onRemoveFile={removeUploadedFile}
-                jobDocuments={jobDocuments}
-                onRemoveJob={handleRemoveJob}
-                onApplyClick={handleApplyClick}
+           <div className="content-right">
+             <JobList
+               jobs={jobs}
+               generatedDocs={generatedDocs}
+               uploadedFiles={uploadedFiles}
+               profile={profile}
+               visibleJobs={visibleJobs}
+               onLoadMore={() => setVisibleJobs((prev) => prev + 5)}
+               onRemoveFile={removeUploadedFile}
+               jobDocuments={jobDocuments}
+               preparedJobs={preparedJobs}
+               onPrepareJob={handlePrepareJob}
+               onRemoveJob={handleRemoveJob}
+               onApplyClick={handleApplyClick}
+                appliedJobs={appliedJobCards}
               />
-            </div>
-          </section>
-        )}
+           </div>
+         </section>
+       )}
 
       </main>
 

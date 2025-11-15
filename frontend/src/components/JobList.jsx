@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 export default function JobList({
   jobs,
   generatedDocs,
@@ -8,8 +10,12 @@ export default function JobList({
   onRemoveFile = () => {},
   onRemoveJob = () => {},
   jobDocuments = {},
-  onApplyClick
+  preparedJobs = new Set(),
+  onPrepareJob = () => {},
+  onApplyClick,
+  appliedJobs = []
 }) {
+  const [modalJob, setModalJob] = useState(null);
   const skills = Array.isArray(profile?.skills) ? profile.skills.slice(0, 8) : [];
   const summaryLines = [];
   if (profile?.title) summaryLines.push(profile.title);
@@ -90,13 +96,22 @@ export default function JobList({
           const matchScore = job.matchScore ?? job.match_score ?? 0;
           const jobId = job._clientId || job.id || job.job_id;
           const docs = jobDocuments[jobId];
+          const isPrepared = preparedJobs.has(jobId);
 
           return (
             <div key={jobId} className="job-item">
       <div className="job-main">
         <div>
-          <div className="job-title">{job.title}</div>
-          <div className="job-company">{job.company}</div>
+          <div className="job-title-row">
+            <span className="job-company">{job.company}</span>
+            <button
+              type="button"
+              className="job-title-link"
+              onClick={() => setModalJob(job)}
+            >
+              {job.job_title || job.title || "View role"}
+            </button>
+          </div>
           <div className="job-meta">
             {job.location} • Match score: <strong>{matchScore}</strong>
           </div>
@@ -107,56 +122,67 @@ export default function JobList({
               ))}
             </div>
           )}
-          {docs && (
-            <div className="job-doc-chips">
+        </div>
+        <div className="job-actions">
+          <button
+            className="job-remove-btn"
+            onClick={() => onRemoveJob(job)}
+            aria-label={`Remove ${job.title}`}
+          >
+            Remove
+          </button>
+
+          {!isPrepared && (
+            <button
+              className="job-prepare-btn"
+              onClick={() => onPrepareJob(job)}
+              aria-label={`Prepare documents for ${job.title}`}
+            >
+              Prepare
+            </button>
+          )}
+
+          {isPrepared && (docs?.resumePdf || docs?.coverPdf) && (
+            <>
               {docs.resumePdf && (
                 <button
                   type="button"
-                  className="job-doc-chip"
+                  className="job-download-btn"
                   onClick={() => downloadBase64Pdf(docs.resumePdf, `${job.company || "resume"}.pdf`)}
                 >
-                  CV
+                  Resume
                 </button>
               )}
               {docs.coverPdf && (
                 <button
                   type="button"
-                  className="job-doc-chip"
+                  className="job-download-btn"
                   onClick={() => downloadBase64Pdf(docs.coverPdf, `${job.company || "cover_letter"}.pdf`)}
                 >
                   Cover Letter
                 </button>
               )}
-            </div>
+              <button
+                className="job-apply-btn"
+                onClick={() => onApplyClick(job)}
+                aria-label={`Apply to ${job.title} at ${job.company}`}
+              >
+                Apply
+              </button>
+            </>
           )}
         </div>
-                <div className="job-actions">
-                  <button
-                    className="job-remove-btn"
-                  onClick={() => onRemoveJob(job)}
-                    aria-label={`Remove ${job.title}`}
-                  >
-                    Remove
-                  </button>
-                  <button
-                    className="job-apply-btn"
-                    onClick={() => onApplyClick(job)}
-                    aria-label={`Apply to ${job.title} at ${job.company}`}
-                  >
-                    Apply
-                  </button>
-                </div>
-              </div>
-              {job.url && (
-                <a
-                  href={job.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="job-link"
-                >
-                  View posting
-                </a>
-              )}
+        </div>
+        {(!docs || (!docs.resumePdf && !docs.coverPdf)) && job.url && (
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="job-link"
+          >
+            View posting
+          </a>
+        )}
             </div>
           );
         })}
@@ -167,20 +193,62 @@ export default function JobList({
         </button>
       )}
 
-      {generatedDocs && (
-        <div className="docs-preview">
-          <DocPreview
-            title="Generated CV"
-            content={generatedDocs.cv}
-            filename="tailored_resume.pdf"
-            pdfBase64={generatedDocs.cvPdf}
-          />
-          <DocPreview
-            title="Cover Letter"
-            content={generatedDocs.coverLetter}
-            filename="cover_letter.pdf"
-            pdfBase64={generatedDocs.coverPdf}
-          />
+      {appliedJobs.length > 0 && (
+        <div className="applied-section">
+          <h3 className="jobs-title">Positions Applied To</h3>
+          <div className="jobs-list">
+            {appliedJobs.map((job) => {
+              const jobId = job._clientId || job.id || job.job_id;
+              const docs = job.documents || {};
+              return (
+                <div key={jobId} className="job-item">
+                  <div className="job-main">
+                    <div>
+                      <div className="job-title">{job.title}</div>
+                      <div className="job-company">{job.company}</div>
+                      <div className="job-meta">{job.location}</div>
+                    </div>
+                    <div className="job-actions">
+                      {docs.resumePdf && (
+                        <button
+                          type="button"
+                          className="job-download-btn"
+                          onClick={() => downloadBase64Pdf(docs.resumePdf, `${job.company || "resume"}.pdf`)}
+                        >
+                          Resume
+                        </button>
+                      )}
+                      {docs.coverPdf && (
+                        <button
+                          type="button"
+                          className="job-download-btn"
+                          onClick={() => downloadBase64Pdf(docs.coverPdf, `${job.company || "cover_letter"}.pdf`)}
+                        >
+                          Cover Letter
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {modalJob && (
+        <div className="modal-backdrop">
+          <div className="job-description-modal">
+            <h3>{modalJob.title}</h3>
+            <p className="modal-job">{modalJob.company}</p>
+            <p className="modal-meta">{modalJob.location}</p>
+            <div className="job-description-body">
+              {modalJob.description || "No job description provided."}
+            </div>
+            <button className="modal-btn primary" onClick={() => setModalJob(null)}>
+              Close
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -203,51 +271,4 @@ function downloadBase64Pdf(base64Data, filename) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-}
-
-function DocPreview({ title, content, filename, pdfBase64 }) {
-  const copyToClipboard = () => {
-    if (!content) return;
-    navigator?.clipboard?.writeText(content);
-  };
-
-  const downloadFile = () => {
-    if (!content && !pdfBase64) return;
-    let blob;
-    if (pdfBase64) {
-      const byteCharacters = atob(pdfBase64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      blob = new Blob([new Uint8Array(byteNumbers)], { type: "application/pdf" });
-    } else {
-      blob = new Blob([content], { type: "text/plain" });
-    }
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div className="doc-preview-item">
-      <div className="doc-preview-header">
-        <h4>{title} (preview)</h4>
-        <div className="doc-preview-actions">
-          <button type="button" onClick={copyToClipboard}>
-            Copy
-          </button>
-          <button type="button" onClick={downloadFile}>
-            Download
-          </button>
-        </div>
-      </div>
-      <pre>{content || "No document yet."}</pre>
-    </div>
-  );
 }

@@ -1,7 +1,8 @@
+from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.agents.UploadResume import ResumeParser
 from app.agents.PlannerAgent import PlannerAgent
-from app.state.user_profiles import set_profile, get_profile
+from app.state.user_profiles import set_profile, get_profile, get_files, set_files
 from app.services.document_generator import generate_documents
 
 api_router = APIRouter()
@@ -22,11 +23,13 @@ async def upload_docs(
     parsed_profile = None
 
     async def _save_file(upload: UploadFile):
-        path = f"/tmp/{upload.filename}"
+        user_dir = Path("storage") / "uploads" / userId
+        user_dir.mkdir(parents=True, exist_ok=True)
+        path = user_dir / upload.filename
         with open(path, "wb") as f:
             f.write(await upload.read())
-        saved_files[upload.filename] = path
-        return path
+        saved_files[upload.filename] = str(path)
+        return str(path)
 
     cv_path = None
     transcript_path = None
@@ -36,14 +39,19 @@ async def upload_docs(
     if transcript:
         transcript_path = await _save_file(transcript)
 
+    files_record = get_files(userId)
+    files_record.update(saved_files)
+
     source_path = cv_path or transcript_path
     if source_path:
         parsed_profile = parser.process(source_path)
-        set_profile(userId, parsed_profile)
+        set_profile(userId, parsed_profile, files_record)
+    else:
+        set_files(userId, files_record)
 
     return {
         "ok": True,
-        "files": list(saved_files.keys()),
+        "files": files_record,
         "profile": parsed_profile
     }
 
