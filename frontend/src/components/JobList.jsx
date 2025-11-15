@@ -87,7 +87,7 @@ export default function JobList({
 
         {jobs.slice(0, visibleJobs).map((job) => {
           const matchScore = job.matchScore ?? job.match_score ?? 0;
-          const jobId = job.id || job.job_id;
+          const jobId = job._clientId || job.id || job.job_id;
 
           return (
             <div key={jobId} className="job-item">
@@ -109,7 +109,7 @@ export default function JobList({
                 <div className="job-actions">
                   <button
                     className="job-remove-btn"
-                    onClick={() => onRemoveJob(job)}
+                  onClick={() => onRemoveJob(job)}
                     aria-label={`Remove ${job.title}`}
                   >
                     Remove
