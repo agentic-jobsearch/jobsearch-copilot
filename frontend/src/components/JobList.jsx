@@ -67,12 +67,14 @@ export default function JobList({
         {jobs.map((job) => {
           const matchScore = job.matchScore ?? job.match_score ?? 0;
           const jobId = job.id || job.job_id;
+          const jobTitle = job.title || job.job_title;
+          const jobUrl = job.url || job.job_url;
 
           return (
             <div key={jobId} className="job-item">
               <div className="job-main">
                 <div>
-                  <div className="job-title">{job.title}</div>
+                  <div className="job-title">{jobTitle}</div>
                   <div className="job-company">{job.company}</div>
                   <div className="job-meta">
                     {job.location} • Match score: {matchScore}
@@ -81,14 +83,14 @@ export default function JobList({
                 <button
                   className="job-apply-btn"
                   onClick={() => onApplyClick(job)}
-                  aria-label={`Apply to ${job.title} at ${job.company}`}
+                  aria-label={`Apply to ${jobTitle} at ${job.company}`}
                 >
                   Apply
                 </button>
               </div>
-              {job.url && (
+              {jobUrl && (
                 <a
-                  href={job.url}
+                  href={jobUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="job-link"

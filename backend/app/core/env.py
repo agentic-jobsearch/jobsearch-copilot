@@ -19,12 +19,12 @@ def load_env():
         if env_file.exists():
             load_dotenv(env_file)
             print(f"✔ Loaded .env from: {env_file}")
-            return
+            return str(env_file)
 
         if infra_env_file.exists():
             load_dotenv(infra_env_file)
             print(f"✔ Loaded .env from: {infra_env_file}")
-            return
+            return str(infra_env_file)
 
     raise FileNotFoundError(
         "❌ Could not find .env file anywhere above the backend directory."

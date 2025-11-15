@@ -1,8 +1,12 @@
 # Minimal vector store placeholder (swap with FAISS)
 class VectorStore:
     def __init__(self):
-        self.docs = []
+        self.docs = {}
+    def add_vector(self, vector_id: str, text: str):
+        """Add a vector with an ID"""
+        self.docs[vector_id] = text
     def add(self, text: str):
-        self.docs.append(text)
+        """Add a vector without ID"""
+        self.docs[len(self.docs)] = text
     def search(self, q: str):
-        return self.docs[:3]
+        return list(self.docs.values())[:3]

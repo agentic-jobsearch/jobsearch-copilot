@@ -52,7 +52,7 @@ class StartWorkflowInput(BaseModel):
 # ------------------------------------------------------
 @app.get("/health")
 def health():
-    return {"status": "ok", "agents_loaded": list(planner.agents.keys())}
+    return {"status": "ok", "message": "JobSearch Co-Pilot API is running"}
 
 # ------------------------------------------------------
 # 1) START WORKFLOW

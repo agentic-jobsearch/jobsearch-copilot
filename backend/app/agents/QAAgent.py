@@ -8,9 +8,6 @@ from google.oauth2 import service_account
 from openai import OpenAI
 from app.core.env import require_env
 
-OPENAI_KEY = require_env("OPENAI_API_KEY")
-self.client = OpenAI(api_key=OPENAI_KEY)
-
 
 # QA Agent for Job Search
 class QAAgent:
